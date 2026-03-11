@@ -1,5 +1,8 @@
 # gh-emu-migration
 
+> **Disclaimer — Proof of Concept**
+> This project is provided as a **proof of concept (POC)** for informational and evaluation purposes only. It is not production-ready software. The authors make **no guarantees, warranties, or representations** — express or implied — regarding its accuracy, reliability, completeness, or fitness for any particular purpose. Use of this tool is entirely at your own risk. Always validate migration plans and test thoroughly in a non-production environment before applying any changes to your GitHub Enterprise organization.
+
 CLI tool for migrating a GitHub Enterprise organization from ADFS SAML SSO to Entra ID, including the transition to Enterprise Managed Users (EMU). Assesses risks, generates migration plans, and produces GEI migration scripts.
 
 ## Quick Start
