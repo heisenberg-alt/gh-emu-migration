@@ -1,109 +1,63 @@
-# GitHub Enterprise ADFS → Entra ID SSO + EMU Migration POC
+# gh-emu-migration
 
-A CLI tool that **assesses risks**, **generates step-by-step migration plans**, and **automates** the migration from **ADFS-based SAML SSO** to **Entra ID** for a GitHub Enterprise organization, including the transition to **Enterprise Managed Users (EMU)**.
-
----
+CLI tool for migrating a GitHub Enterprise organization from ADFS SAML SSO to Entra ID, including the transition to Enterprise Managed Users (EMU). Assesses risks, generates migration plans, and produces GEI migration scripts.
 
 ## Quick Start
 
 ```bash
-# 1. Install (creates .venv automatically)
-cd gh-emu-migration
 uv sync
-
-# 2. Run the offline demo (no credentials needed)
-uv run emu-migrate demo
-
-# 3. For real usage: configure credentials
-cp config.example.yaml config.yaml
-# Edit config.yaml with your GitHub + Entra ID details
-
-# 4. Run assessment against your org
-uv run emu-migrate assess
-
-# 5. View the full migration plan
-uv run emu-migrate plan
-
-# 6. Generate a Markdown report
-uv run emu-migrate report
-
-# 7. Generate GEI migration script
-uv run emu-migrate generate-gei-script
+uv run emu-migrate demo          # offline demo, no credentials needed
 ```
 
----
+For a real org:
 
-## What This Tool Does
+```bash
+cp config.example.yaml config.yaml   # fill in GitHub + Entra ID details
+uv run emu-migrate assess            # risk assessment against your org
+uv run emu-migrate plan              # full migration plan
+uv run emu-migrate report            # Markdown report
+uv run emu-migrate generate-gei-script  # GEI repo migration script
+```
 
-### 1. Risk Assessment (`emu-migrate assess`)
+## Prerequisites
 
-Connects to your GitHub Enterprise organization and:
-
-- Inventories all **members** and their SAML identity linkages
-- Inventories all **repositories** (size, Actions usage, archive status)
-- Counts **outside collaborators** (not supported in EMU)
-- Detects **service accounts** that may break during IdP switch
-- Evaluates **13 risks** across four phases with severity ratings
-- Runs **automated checks** where possible (unlinked SAML users, service accounts, outside collaborators, Actions usage)
-- Outputs a JSON report for programmatic consumption
-
-### 2. SSO Switch Plan (`emu-migrate plan --phase sso`)
-
-Generates a 10-step plan to switch SAML SSO from ADFS to Entra ID:
-
-1. Register Enterprise App in Entra ID
-2. Configure SAML claim rules (with NameID matching guidance)
-3. Assign user groups
-4. Download Entra ID SAML metadata
-5. Test with staging org
-6. Announce maintenance window
-7. Update GitHub org SAML settings
-8. Validate with pilot users
-9. Require SAML SSO
-10. Decommission ADFS
-
-### 3. EMU Migration Plan (`emu-migrate plan --phase emu`)
-
-Generates a 14-step plan to migrate to Enterprise Managed Users:
-
-1. Verify EMU entitlement
-2. Create EMU enterprise
-3. Configure Entra ID SAML for EMU
-4. Configure SCIM provisioning
-5. Assign user groups for SCIM
-6. Validate provisioned accounts
-7. Create target org in EMU enterprise
-8. Install GitHub Enterprise Importer (GEI)
-9. Dry-run repo migration
-10. Full repo migration
-11. Reclaim mannequins (identity mapping)
-12. Validate developer workflow
-13. Re-create integrations
-14. Decommission old org
-
-### 4. GEI Script Generation (`emu-migrate generate-gei-script`)
-
-Auto-generates a bash script with one `gh gei migrate-repo` command per non-archived repository.
-
-### 5. Full Report (`emu-migrate report`)
-
-Combines everything into a single Markdown document saved to `reports/migration-report.md`.
-
----
+| Requirement | Details |
+|---|---|
+| Python | 3.10+ |
+| uv | Package manager — `irm https://astral.sh/uv/install.ps1 \| iex` (Windows) |
+| GitHub PAT | Classic token with `admin:org`, `repo`, `read:user`, `user:email` scopes |
+| GitHub Enterprise Cloud | Required for SAML/SSO and EMU features (free tier works for assessment only) |
+| Entra ID tenant | Global Admin or Application Admin role |
+| GitHub CLI + GEI | `gh extension install github/gh-gei` — for repo migration execution |
 
 ## Configuration
 
-Copy `config.example.yaml` to `config.yaml`. Key sections:
+Copy `config.example.yaml` → `config.yaml`:
 
-| Section | Purpose |
-|---------|---------|
-| `github` | Enterprise/org slug, PAT token |
-| `adfs` | Current ADFS metadata (for NameID comparison) |
-| `entra_id` | Entra ID tenant, app registration details |
-| `emu` | Short code, group mappings |
-| `migration` | Dry-run mode, output paths, notifications |
+```yaml
+github:
+  enterprise: "your-enterprise"
+  organization: "your-org"
+  token: "ghp_..."
 
-Secrets can also be set via environment variables:
+adfs:
+  federation_metadata_url: "https://adfs.example.com/.../FederationMetadata.xml"
+
+entra_id:
+  tenant_id: "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+  client_id: "your-app-client-id"
+  client_secret: ""
+
+emu:
+  target_enterprise: "your-org-emu"
+  target_organization: "your-org-emu-org"
+  shortcode: "YOUREMU"
+
+migration:
+  dry_run: true
+```
+
+Secrets can be set via environment variables instead:
 
 ```bash
 export GH_TOKEN="ghp_..."
@@ -111,61 +65,91 @@ export ENTRA_TENANT_ID="..."
 export ENTRA_CLIENT_SECRET="..."
 ```
 
----
+## Commands
 
-## Key Risks Identified
+| Command | Description |
+|---|---|
+| `emu-migrate demo` | Run offline with synthetic data |
+| `emu-migrate assess` | Connect to GitHub org, inventory members/repos, evaluate 13 risks |
+| `emu-migrate plan --phase sso` | 10-step ADFS → Entra ID SSO switch plan |
+| `emu-migrate plan --phase emu` | 14-step EMU migration plan |
+| `emu-migrate plan` | Both plans |
+| `emu-migrate report` | Full Markdown report to `reports/migration-report.md` |
+| `emu-migrate generate-gei-script` | Bash script with `gh gei migrate-repo` per repo |
+| `emu-migrate setup-test-org` | Provision a test org with sample repos and members |
+| `emu-migrate live-test` | Automated end-to-end test suite (7 checks) |
+| `emu-migrate check-entra` | Verify Entra ID / Azure CLI readiness |
+| `emu-migrate setup-entra` | Create app registration, service principal, security groups |
+
+All commands that hit the GitHub API accept `--config config.yaml`.
+
+## What the Assessment Covers
+
+- Member inventory with SAML identity linkage status
+- Repository inventory (visibility, Actions usage, archive status)
+- Outside collaborator detection (not supported in EMU)
+- Service account identification
+- 13 risks across 4 phases (assessment, SSO switch, EMU migration, validation)
+- Automated checks where possible (unlinked SAML users, Actions workflows, outside collaborators)
+
+## Risk Catalogue
 
 | ID | Severity | Risk |
-|----|----------|------|
-| SSO-001 | 🔴 CRITICAL | SSO downtime during IdP switch |
-| SSO-002 | 🟠 HIGH | SAML NameID mismatch between ADFS and Entra ID |
-| EMU-001 | 🔴 CRITICAL | Personal accounts cannot be converted to EMU in-place |
-| EMU-002 | 🔴 CRITICAL | Contribution history tied to personal accounts |
-| EMU-003 | 🟠 HIGH | Outside collaborators not supported in EMU |
-| EMU-004 | 🟠 HIGH | Personal forks, stars, gists are lost |
-| EMU-005 | 🟠 HIGH | Actions secrets need reconfiguration |
-| VAL-001 | 🟠 HIGH | PATs and SSH keys need SSO re-authorization |
+|---|---|---|
+| SSO-001 | CRITICAL | SSO downtime during IdP switch |
+| SSO-002 | HIGH | SAML NameID mismatch between ADFS and Entra ID |
+| SSO-003 | MEDIUM | Conditional Access policy conflicts |
+| SSO-004 | HIGH | Service account authentication breakage |
+| EMU-001 | CRITICAL | Personal accounts cannot convert to EMU in-place |
+| EMU-002 | CRITICAL | Contribution history tied to personal accounts |
+| EMU-003 | HIGH | Outside collaborators not supported in EMU |
+| EMU-004 | HIGH | Personal forks, stars, and gists are lost |
+| EMU-005 | HIGH | Actions secrets and environments need reconfiguration |
+| EMU-006 | MEDIUM | GitHub Packages registry migration |
+| EMU-007 | MEDIUM | GitHub Apps and OAuth Apps need reconfiguration |
+| VAL-001 | HIGH | PATs and SSH keys require SSO re-authorization |
+| VAL-002 | MEDIUM | CI/CD pipeline authentication updates |
 
-See the full risk catalogue (13 items) by running `emu-migrate assess` or `emu-migrate demo`.
+## Migration Phases
 
----
+### Phase 1 — SSO Switch (ADFS → Entra ID)
 
-## Architecture
+10 steps: Register Entra ID Enterprise App → configure SAML claims → assign groups → download metadata → staging test → maintenance window → update GitHub SSO config → pilot validation → require SSO → decommission ADFS.
+
+### Phase 2 — EMU Migration
+
+14 steps: Verify EMU entitlement → create EMU enterprise → configure SAML + SCIM → provision accounts → create target org → install GEI → dry-run migration → full migration → reclaim mannequins → validate workflows → re-create integrations → decommission old org.
+
+## Project Structure
 
 ```
 src/emu_migration/
-├── __init__.py
-├── cli.py              # Click CLI entry point
-├── config.py           # YAML config loader with env var overrides
-├── models.py           # Data models (Risk, OrgMember, RepoInfo, etc.)
-├── github_client.py    # GitHub REST + GraphQL API client
-├── assessment.py       # Risk assessment engine with automated checks
-├── sso_migration.py    # ADFS → Entra ID SSO switch planner
-├── emu_migration.py    # EMU migration planner + GEI script generator
-├── report.py           # Markdown + Rich console report output
-└── demo.py             # Offline demo with synthetic data
+├── cli.py              # Click CLI (entry point: emu-migrate)
+├── config.py           # YAML config loader, env var overrides
+├── models.py           # Risk, OrgMember, RepoInfo, MigrationPlan
+├── github_client.py    # REST + GraphQL API client
+├── assessment.py       # Risk engine (13 risks, automated checks)
+├── sso_migration.py    # SSO switch planner (10 steps)
+├── emu_migration.py    # EMU planner (14 steps) + GEI script generator
+├── report.py           # Markdown + Rich console output
+└── demo.py             # Offline demo with synthetic Contoso data
+
+tests/
+├── setup_test_org.py   # GitHub org provisioner (5 repos, members, collaborators)
+├── setup_entra_id.py   # Entra ID setup via Azure CLI
+└── live_test.py        # E2E live test runner (7 checks)
 ```
 
----
+## Important Constraints
 
-## Prerequisites
+- **EMU is one-way.** There is no rollback to personal accounts once repos are migrated to an EMU enterprise.
+- **Outside collaborators must be handled first.** EMU does not support them. Options: Entra B2B guest accounts, or keep shared repos in a non-EMU org.
+- **Contribution history appears as mannequins.** Commits from personal accounts are attributed to placeholder identities after migration. Use GEI mannequin reclaim to remap them.
+- **Dry-run by default.** The tool defaults to `dry_run: true`. Review all output before switching to live mode.
+- **This is a POC.** It generates plans, reports, and scripts. Actual SSO configuration and SCIM setup are performed in the Azure Portal and GitHub admin UI.
 
-- Python 3.10+
-- GitHub Enterprise Cloud organization with admin access
-- GitHub PAT with scopes: `admin:org`, `read:user`, `user:email`
-- Entra ID (Azure AD) tenant with Global Admin or Application Admin role
-- [GitHub CLI](https://cli.github.com/) with the [GEI extension](https://github.com/github/gh-gei) (for repo migration)
+## Further Reading
 
----
-
-## Important Notes
-
-1. **EMU is a one-way migration**: EMU accounts are fundamentally different from personal accounts. There is no rollback to personal accounts once repos are migrated.
-
-2. **Run in dry-run mode first**: The tool defaults to `dry_run: true` in config. Review all plans and reports before changing to live mode.
-
-3. **Outside collaborators**: EMU does not support outside collaborators. They must be handled before migration (convert to guests via Entra B2B, or move shared repos to a non-EMU org).
-
-4. **Contribution history**: Commits from personal accounts will appear as "mannequins" after migration. Use GEI's mannequin reclaim feature to remap them to EMU accounts.
-
-5. **This is a POC**: This tool generates plans and reports. The actual SSO configuration changes and SCIM setup are manual steps performed in the Azure Portal and GitHub settings UI.
+- [LIVE_TESTING_GUIDE.md](LIVE_TESTING_GUIDE.md) — step-by-step guide for testing against a real org
+- [TESTING.md](TESTING.md) — detailed test phases and troubleshooting
+- [config.example.yaml](config.example.yaml) — annotated configuration template
