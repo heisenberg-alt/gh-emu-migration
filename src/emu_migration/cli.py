@@ -3,7 +3,17 @@
 from __future__ import annotations
 
 import logging
+import os
 import sys
+
+# Ensure UTF-8 output on Windows so Rich emoji/box-drawing work
+if sys.platform == "win32":
+    os.environ.setdefault("PYTHONIOENCODING", "utf-8")
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
 
 import click
 from rich.console import Console
@@ -157,6 +167,81 @@ def demo() -> None:
     """
     from .demo import run_demo
     run_demo()
+
+
+# ── setup-test-org ──────────────────────────────────────────────────
+
+@main.command("setup-test-org")
+@click.option("--org", required=True, help="GitHub organization slug")
+@click.option("--token", required=True, help="GitHub PAT (admin:org, repo, workflow)")
+@click.option("--invite", multiple=True, help="GitHub usernames to invite (repeat for multiple)")
+@click.option("--collaborator", default=None, help="Username to add as outside collaborator")
+@click.option("--cleanup", is_flag=True, help="Delete test-* repos instead of creating")
+def setup_test_org(org: str, token: str, invite: tuple, collaborator: str | None, cleanup: bool) -> None:
+    """Provision a demo GitHub org with test repos and users.
+
+    Creates 5 test repositories, adds Actions workflows, invites members,
+    and optionally adds outside collaborators — everything needed to
+    run a realistic assessment.
+    """
+    from tests.setup_test_org import GitHubSetup
+    setup = GitHubSetup(token=token, org=org)
+    if cleanup:
+        console.print(f"[bold yellow]Cleaning up test repos in {org}…[/]")
+        setup.cleanup_test_repos()
+    else:
+        setup.full_setup(
+            invite_users=list(invite) or None,
+            collaborator_user=collaborator,
+        )
+
+
+# ── check-entra ─────────────────────────────────────────────────────
+
+@main.command("check-entra")
+@click.option("--tenant-id", required=True, help="Entra ID tenant ID")
+@click.option("--org", required=True, help="GitHub organization slug")
+def check_entra(tenant_id: str, org: str) -> None:
+    """Check Entra ID readiness for GitHub SAML SSO.
+
+    Verifies Azure CLI login, queries existing Enterprise Apps and
+    security groups. Requires: az login first.
+    """
+    from tests.setup_entra_id import check_entra_readiness
+    check_entra_readiness(tenant_id, org)
+
+
+# ── setup-entra ──────────────────────────────────────────────────────
+
+@main.command("setup-entra")
+@click.option("--tenant-id", required=True, help="Entra ID tenant ID")
+@click.option("--org", required=True, help="GitHub organization slug")
+@click.option("--enterprise", default="", help="GitHub enterprise slug (for EMU SCIM)")
+def setup_entra(tenant_id: str, org: str, enterprise: str) -> None:
+    """Create Entra ID Enterprise App and security groups for GitHub SSO.
+
+    Automates: App Registration, Service Principal, and security group
+    creation. Prints remaining manual steps for SAML config.
+    Requires: az login first.
+    """
+    from tests.setup_entra_id import setup_entra_for_github
+    setup_entra_for_github(tenant_id, org, enterprise)
+
+
+# ── live-test ────────────────────────────────────────────────────────
+
+@main.command("live-test")
+@click.option("--full", is_flag=True, help="Run full suite including GEI script gen")
+@click.pass_context
+def live_test(ctx: click.Context, full: bool) -> None:
+    """Run end-to-end live tests against a real GitHub org.
+
+    Validates assessment, plan generation, and report output.
+    Requires a valid config.yaml with real credentials.
+    """
+    from tests.live_test import run_live_test
+    success = run_live_test(ctx.obj["config_path"], full=full)
+    sys.exit(0 if success else 1)
 
 
 # ── Helpers ─────────────────────────────────────────────────────────
