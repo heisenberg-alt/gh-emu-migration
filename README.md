@@ -76,6 +76,10 @@ export ENTRA_CLIENT_SECRET="..."
 | `emu-migrate plan` | Both plans |
 | `emu-migrate report` | Full Markdown report to `reports/migration-report.md` |
 | `emu-migrate generate-gei-script` | Bash script with `gh gei migrate-repo` per repo |
+| `emu-migrate gei-check` | Verify `gh` CLI and `gh-gei` extension are installed |
+| `emu-migrate migrate --dry-run` | Dry-run: lists repos that would be migrated |
+| `emu-migrate migrate --live` | Execute live GEI migration (source → EMU org) |
+| `emu-migrate reclaim-mannequins` | Generate mannequin mapping CSV and/or reclaim identities |
 | `emu-migrate setup-test-org` | Provision a test org with sample repos and members |
 | `emu-migrate live-test` | Automated end-to-end test suite (7 checks) |
 | `emu-migrate check-entra` | Verify Entra ID / Azure CLI readiness |

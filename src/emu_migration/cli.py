@@ -20,7 +20,13 @@ from rich.console import Console
 
 from .assessment import run_assessment
 from .config import load_config
-from .emu_migration import build_emu_migration_plan, generate_gei_script
+from .emu_migration import build_emu_migration_plan, generate_gei_script, generate_mannequin_mapping
+from .gei import (
+    GEIClient,
+    MannequinMapping,
+    print_migration_summary,
+    save_migration_log,
+)
 from .report import (
     generate_markdown_report,
     print_assessment,
@@ -242,6 +248,183 @@ def live_test(ctx: click.Context, full: bool) -> None:
     from tests.live_test import run_live_test
     success = run_live_test(ctx.obj["config_path"], full=full)
     sys.exit(0 if success else 1)
+
+
+# ── migrate ──────────────────────────────────────────────────────────
+
+@main.command("migrate")
+@click.option("--repos", multiple=True, help="Specific repos to migrate (default: all non-archived)")
+@click.option("--dry-run/--live", default=True, help="Dry-run (default) or live migration")
+@click.option("--source-pat", envvar="GH_SOURCE_PAT", default=None, help="Source org admin PAT (or GH_SOURCE_PAT)")
+@click.option("--target-pat", envvar="GH_TARGET_PAT", default=None, help="Target org admin PAT (or GH_TARGET_PAT)")
+@click.pass_context
+def migrate(
+    ctx: click.Context,
+    repos: tuple,
+    dry_run: bool,
+    source_pat: str | None,
+    target_pat: str | None,
+) -> None:
+    """Run GEI repository migration (source org → EMU org).
+
+    By default runs in --dry-run mode which lists repos without migrating.
+    Pass --live to execute for real.
+
+    Requires `gh` CLI with the `gh-gei` extension installed.
+    Set GH_SOURCE_PAT and GH_TARGET_PAT or pass them as options.
+    """
+    cfg = _load_cfg(ctx)
+    org = cfg["github"]["organization"]
+    target_org = cfg.get("emu", {}).get("target_organization", f"{org}-emu")
+    source_token = source_pat or cfg["github"].get("token")
+    target_token = target_pat or source_token
+
+    if not source_token:
+        console.print("[red]No source PAT provided. Set GH_SOURCE_PAT or use --source-pat.[/]")
+        sys.exit(1)
+
+    gei = GEIClient(source_pat=source_token, target_pat=target_token)
+    gei.ensure_extension()
+
+    # Resolve repo list
+    if repos:
+        repo_list = list(repos)
+    else:
+        from .github_client import GitHubClient
+        gh = GitHubClient(token=source_token)
+        console.print(f"[bold]Fetching repos from {org} …[/]")
+        all_repos = gh.get_org_repos(org)
+        repo_list = [r["name"] for r in all_repos if not r.get("archived")]
+        console.print(f"Found {len(repo_list)} active repositories.\n")
+
+    if not repo_list:
+        console.print("[yellow]No repositories to migrate.[/]")
+        return
+
+    if not dry_run:
+        console.print(
+            f"[bold red]LIVE MIGRATION[/]: {len(repo_list)} repos from "
+            f"[cyan]{org}[/] → [cyan]{target_org}[/]\n"
+        )
+        if not click.confirm("Proceed with live migration?"):
+            console.print("[dim]Aborted.[/]")
+            return
+
+    run = gei.migrate_repos(
+        source_org=org,
+        target_org=target_org,
+        repos=repo_list,
+        dry_run=dry_run,
+    )
+
+    print_migration_summary(run)
+    output_dir = cfg.get("migration", {}).get("report_output", "reports/")
+    save_migration_log(run, output_dir)
+
+    if run.failed > 0:
+        sys.exit(1)
+
+
+# ── reclaim-mannequins ──────────────────────────────────────────────
+
+@main.command("reclaim-mannequins")
+@click.option("--csv-file", default=None, help="Path to mannequin mapping CSV (skip auto-generation)")
+@click.option("--generate-only", is_flag=True, help="Only generate the CSV, don't reclaim")
+@click.option("--target-pat", envvar="GH_TARGET_PAT", default=None, help="Target org admin PAT (or GH_TARGET_PAT)")
+@click.pass_context
+def reclaim_mannequins(
+    ctx: click.Context,
+    csv_file: str | None,
+    generate_only: bool,
+    target_pat: str | None,
+) -> None:
+    """Map old personal account identities to EMU accounts.
+
+    Without --csv-file, auto-generates a mapping based on config (old_login → old_login_shortcode).
+    With --csv-file, uses an existing mannequin CSV.
+
+    The CSV format expected by GEI is:
+      mannequin-user, mannequin-id, target-user
+    """
+    cfg = _load_cfg(ctx)
+    org = cfg["github"]["organization"]
+    target_org = cfg.get("emu", {}).get("target_organization", f"{org}-emu")
+    short_code = cfg.get("emu", {}).get("short_code", "company")
+    token = target_pat or cfg["github"].get("token")
+
+    gei = GEIClient(target_pat=token)
+    gei.ensure_extension()
+
+    output_dir = cfg.get("migration", {}).get("report_output", "reports/")
+
+    if csv_file:
+        if generate_only:
+            console.print("[yellow]--generate-only ignored when --csv-file is provided.[/]")
+        console.print(f"[bold]Reclaiming mannequins from {csv_file} …[/]")
+        success = gei.reclaim_mannequins(target_org, csv_file)
+    else:
+        # Auto-generate the CSV from assessment data
+        console.print("[bold]Generating mannequin mapping from org members …[/]")
+        from .github_client import GitHubClient
+        gh = GitHubClient(token=cfg["github"]["token"])
+        members = gh.get_org_members(org)
+        raw_mappings = generate_mannequin_mapping(members, short_code)
+
+        mappings = [
+            MannequinMapping(
+                source_login=m["source"],
+                target_login=m["target"],
+            )
+            for m in raw_mappings
+        ]
+
+        # Write CSV
+        from pathlib import Path
+        import csv as csv_mod
+
+        out = Path(output_dir)
+        out.mkdir(parents=True, exist_ok=True)
+        csv_path = str(out / "mannequin-mapping.csv")
+
+        with open(csv_path, "w", newline="", encoding="utf-8") as f:
+            writer = csv_mod.writer(f)
+            writer.writerow(["mannequin-user", "mannequin-id", "target-user"])
+            for m in mappings:
+                writer.writerow([m.source_login, m.mannequin_id, m.target_login])
+
+        console.print(f"[green]Mannequin mapping saved to {csv_path}[/]")
+        console.print(f"  {len(mappings)} users: login → login_{short_code}")
+
+        if generate_only:
+            console.print("\n[dim]--generate-only: review the CSV and re-run without this flag.[/]")
+            return
+
+        console.print(f"\n[bold]Reclaiming mannequins in {target_org} …[/]")
+        success = gei.reclaim_mannequins(target_org, csv_path)
+
+    sys.exit(0 if success else 1)
+
+
+# ── gei-check ────────────────────────────────────────────────────────
+
+@main.command("gei-check")
+def gei_check() -> None:
+    """Check if GitHub CLI and GEI extension are installed."""
+    import shutil
+
+    gh_path = shutil.which("gh")
+    if not gh_path:
+        console.print("[red]✗[/] GitHub CLI (gh) not found on PATH")
+        console.print("  Install from https://cli.github.com/")
+        sys.exit(1)
+    console.print(f"[green]✓[/] GitHub CLI found: {gh_path}")
+
+    if GEIClient.is_installed():
+        console.print("[green]✓[/] gh-gei extension installed")
+    else:
+        console.print("[yellow]✗[/] gh-gei extension not installed")
+        console.print("  Run: gh extension install github/gh-gei")
+        sys.exit(1)
 
 
 # ── Helpers ─────────────────────────────────────────────────────────

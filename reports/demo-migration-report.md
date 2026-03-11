@@ -3,7 +3,7 @@
 
 - **Enterprise**: contoso-enterprise
 - **Organization**: contoso-dev
-- **Generated**: 2026-03-11T13:23:04.003851+00:00
+- **Generated**: 2026-03-11T15:21:30.432141+00:00
 - **Members**: 6
 - **Repositories**: 6
 - **Outside Collaborators**: 2
@@ -282,37 +282,33 @@ Create an organization (e.g., 'contoso-dev' or 'contoso-dev-emu') within the EMU
 Install the GEI CLI:
   gh extension install github/gh-gei
 
-Generate migration script:
-  gh gei generate-script \
-    --github-source-org contoso-dev \
-    --github-target-org contoso-dev-emu \
-    --output migrate.sh
+Verify installation:
+  emu-migrate gei-check
 
-Review the generated script. It will contain one gh gei migrate-repo command per repository.
-
-### Step 9: Run repository migration (dry-run)  `[AUTOMATED]`
-
-Execute the migration in dry-run mode first:
-
+Set PATs for source and target orgs:
   export GH_SOURCE_PAT=<source org admin PAT>
   export GH_TARGET_PAT=<EMU enterprise admin PAT>
 
-  gh gei migrate-repo \
-    --github-source-org contoso-dev \
-    --source-repo <repo-name> \
-    --github-target-org contoso-dev-emu \
-    --target-repo <repo-name>
+### Step 9: Run repository migration (dry-run)  `[AUTOMATED]`
 
-Start with a few non-critical repos. Verify:
-  • All branches transferred
-  • All PRs/issues transferred
-  • Branch protections transferred
-  • Actions workflows present (secrets need manual setup)
+Execute a dry-run to validate repos before migrating:
+
+  emu-migrate migrate --config config.yaml --dry-run
+
+Or migrate specific repos first:
+
+  emu-migrate migrate --config config.yaml --dry-run --repos test-backend-api --repos test-frontend-app
+
+Review the output. No data is transferred in dry-run mode.
 
 ### Step 10: Run full repository migration  `[AUTOMATED]`
 
-After validating the pilot repos, run the full migration script.
-Monitor the migration log for errors.
+After validating the dry-run, execute the live migration:
+
+  emu-migrate migrate --config config.yaml --live
+
+This migrates all non-archived repos sequentially.
+Monitor the output and check reports/migration-log.json.
 
 Post-migration per-repo checklist:
   □ Verify default branch
@@ -325,16 +321,11 @@ Post-migration per-repo checklist:
 
 After migration, commits/PRs from old personal accounts show as 'mannequins'. Reclaim them:
 
-  gh gei generate-mannequin-csv \
-    --github-target-org contoso-dev-emu \
-    --output mannequins.csv
+Generate the mapping CSV:
+  emu-migrate reclaim-mannequins --config config.yaml --generate-only
 
-Edit mannequins.csv to map old logins to new EMU logins:
-  old-login → new-login_contoso
-
-  gh gei reclaim-mannequin \
-    --github-target-org contoso-dev-emu \
-    --csv mannequins.csv
+Review and edit reports/mannequin-mapping.csv, then reclaim:
+  emu-migrate reclaim-mannequins --config config.yaml --csv-file reports/mannequin-mapping.csv
 
 ### Step 12: Validate end-to-end developer workflow  `[MANUAL]`
 

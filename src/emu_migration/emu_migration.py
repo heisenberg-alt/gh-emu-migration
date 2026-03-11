@@ -128,13 +128,11 @@ def build_emu_migration_plan(cfg: dict[str, Any]) -> MigrationPlan:
             description=(
                 "Install the GEI CLI:\n"
                 "  gh extension install github/gh-gei\n\n"
-                "Generate migration script:\n"
-                f"  gh gei generate-script \\\n"
-                f"    --github-source-org {org} \\\n"
-                f"    --github-target-org {org}-emu \\\n"
-                "    --output migrate.sh\n\n"
-                "Review the generated script. It will contain one gh gei migrate-repo "
-                "command per repository."
+                "Verify installation:\n"
+                "  emu-migrate gei-check\n\n"
+                "Set PATs for source and target orgs:\n"
+                "  export GH_SOURCE_PAT=<source org admin PAT>\n"
+                "  export GH_TARGET_PAT=<EMU enterprise admin PAT>"
             ),
             manual=False,
         ),
@@ -143,19 +141,12 @@ def build_emu_migration_plan(cfg: dict[str, Any]) -> MigrationPlan:
             phase=MigrationPhase.EMU_MIGRATION,
             title="Run repository migration (dry-run)",
             description=(
-                "Execute the migration in dry-run mode first:\n\n"
-                f"  export GH_SOURCE_PAT=<source org admin PAT>\n"
-                f"  export GH_TARGET_PAT=<EMU enterprise admin PAT>\n\n"
-                f"  gh gei migrate-repo \\\n"
-                f"    --github-source-org {org} \\\n"
-                f"    --source-repo <repo-name> \\\n"
-                f"    --github-target-org {org}-emu \\\n"
-                f"    --target-repo <repo-name>\n\n"
-                "Start with a few non-critical repos. Verify:\n"
-                "  • All branches transferred\n"
-                "  • All PRs/issues transferred\n"
-                "  • Branch protections transferred\n"
-                "  • Actions workflows present (secrets need manual setup)"
+                "Execute a dry-run to validate repos before migrating:\n\n"
+                f"  emu-migrate migrate --config config.yaml --dry-run\n\n"
+                "Or migrate specific repos first:\n\n"
+                f"  emu-migrate migrate --config config.yaml --dry-run "
+                f"--repos test-backend-api --repos test-frontend-app\n\n"
+                "Review the output. No data is transferred in dry-run mode."
             ),
             manual=False,
         ),
@@ -164,8 +155,10 @@ def build_emu_migration_plan(cfg: dict[str, Any]) -> MigrationPlan:
             phase=MigrationPhase.EMU_MIGRATION,
             title="Run full repository migration",
             description=(
-                "After validating the pilot repos, run the full migration script.\n"
-                "Monitor the migration log for errors.\n\n"
+                "After validating the dry-run, execute the live migration:\n\n"
+                f"  emu-migrate migrate --config config.yaml --live\n\n"
+                "This migrates all non-archived repos sequentially.\n"
+                "Monitor the output and check reports/migration-log.json.\n\n"
                 "Post-migration per-repo checklist:\n"
                 "  □ Verify default branch\n"
                 "  □ Re-create branch protection rules if needed\n"
@@ -184,14 +177,11 @@ def build_emu_migration_plan(cfg: dict[str, Any]) -> MigrationPlan:
             description=(
                 "After migration, commits/PRs from old personal accounts show as "
                 "'mannequins'. Reclaim them:\n\n"
-                f"  gh gei generate-mannequin-csv \\\n"
-                f"    --github-target-org {org}-emu \\\n"
-                "    --output mannequins.csv\n\n"
-                "Edit mannequins.csv to map old logins to new EMU logins:\n"
-                f"  old-login → new-login_{short_code}\n\n"
-                f"  gh gei reclaim-mannequin \\\n"
-                f"    --github-target-org {org}-emu \\\n"
-                "    --csv mannequins.csv"
+                "Generate the mapping CSV:\n"
+                f"  emu-migrate reclaim-mannequins --config config.yaml --generate-only\n\n"
+                "Review and edit reports/mannequin-mapping.csv, then reclaim:\n"
+                f"  emu-migrate reclaim-mannequins --config config.yaml "
+                f"--csv-file reports/mannequin-mapping.csv"
             ),
             manual=False,
         ),
