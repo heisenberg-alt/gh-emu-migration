@@ -6,7 +6,7 @@ Step-by-step instructions for testing the EMU Migration POC against a real GitHu
 
 ## Prerequisites
 
-- Python 3.10+ with the `emu-migrate` CLI installed (`pip install -e .`)
+- Python 3.10+ and [uv](https://docs.astral.sh/uv/getting-started/installation/) installed
 - A GitHub account
 - (Optional) An Azure subscription for Entra ID testing
 
@@ -44,7 +44,7 @@ If you don't already have one, create a **free** organization:
 Use the built-in provisioner to populate your org with test repos, Actions workflows, and collaborators:
 
 ```bash
-emu-migrate setup-test-org --org YOUR_ORG --token ghp_XXXX
+uv run emu-migrate setup-test-org --org YOUR_ORG --token ghp_XXXX
 ```
 
 This creates:
@@ -62,7 +62,7 @@ It also invites any members/collaborators you specify (see `--help` for options)
 To clean up later:
 
 ```bash
-emu-migrate setup-test-org --org YOUR_ORG --token ghp_XXXX --cleanup
+uv run emu-migrate setup-test-org --org YOUR_ORG --token ghp_XXXX --cleanup
 ```
 
 ---
@@ -115,7 +115,7 @@ migration:
 ## 5. Run the Live Assessment
 
 ```bash
-emu-migrate assess --config config.yaml
+uv run emu-migrate assess --config config.yaml
 ```
 
 This connects to your GitHub org and:
@@ -135,7 +135,7 @@ The output is a rich console report showing risks by severity.
 ### SSO Switch Plan (ADFS → Entra ID)
 
 ```bash
-emu-migrate plan --config config.yaml --phase sso
+uv run emu-migrate plan --config config.yaml --phase sso
 ```
 
 Outputs a 10-step migration plan for switching your SAML SSO provider.
@@ -143,7 +143,7 @@ Outputs a 10-step migration plan for switching your SAML SSO provider.
 ### EMU Migration Plan
 
 ```bash
-emu-migrate plan --config config.yaml --phase emu
+uv run emu-migrate plan --config config.yaml --phase emu
 ```
 
 Outputs a 14-step plan for migrating to Enterprise Managed Users.
@@ -151,7 +151,7 @@ Outputs a 14-step plan for migrating to Enterprise Managed Users.
 ### Both Plans
 
 ```bash
-emu-migrate plan --config config.yaml --phase all
+uv run emu-migrate plan --config config.yaml --phase all
 ```
 
 ---
@@ -161,7 +161,7 @@ emu-migrate plan --config config.yaml --phase all
 ### Markdown Report
 
 ```bash
-emu-migrate report --config config.yaml
+uv run emu-migrate report --config config.yaml
 ```
 
 Saves a full report to `reports/migration-report.md`.
@@ -169,7 +169,7 @@ Saves a full report to `reports/migration-report.md`.
 ### GEI Migration Script
 
 ```bash
-emu-migrate generate-gei-script --config config.yaml
+uv run emu-migrate generate-gei-script --config config.yaml
 ```
 
 Generates a shell script for GitHub Enterprise Importer (`gh gei`) to migrate all repos.
@@ -177,7 +177,7 @@ Generates a shell script for GitHub Enterprise Importer (`gh gei`) to migrate al
 Add `--full` to include mannequin reclaim commands:
 
 ```bash
-emu-migrate generate-gei-script --config config.yaml --full
+uv run emu-migrate generate-gei-script --config config.yaml --full
 ```
 
 ---
@@ -185,7 +185,7 @@ emu-migrate generate-gei-script --config config.yaml --full
 ## 8. Run the Full Live Test Suite
 
 ```bash
-emu-migrate live-test --config config.yaml
+uv run emu-migrate live-test --config config.yaml
 ```
 
 This runs 7 automated checks:
@@ -209,7 +209,7 @@ Requires an Azure subscription and the [Azure CLI](https://learn.microsoft.com/e
 ### Check readiness
 
 ```bash
-emu-migrate check-entra --tenant-id YOUR_TENANT_ID
+uv run emu-migrate check-entra --tenant-id YOUR_TENANT_ID
 ```
 
 Verifies:
@@ -221,7 +221,7 @@ Verifies:
 ### Provision Entra ID resources
 
 ```bash
-emu-migrate setup-entra --tenant-id YOUR_TENANT_ID --org YOUR_ORG
+uv run emu-migrate setup-entra --tenant-id YOUR_TENANT_ID --org YOUR_ORG
 ```
 
 Creates:
@@ -273,31 +273,34 @@ After running, you still need to manually:
 ## Quick Reference
 
 ```bash
+# Install (creates .venv automatically)
+uv sync
+
 # Demo (no GitHub connection needed)
-emu-migrate demo
+uv run emu-migrate demo
 
 # Provision test org
-emu-migrate setup-test-org --org MY_ORG --token ghp_XXXX
+uv run emu-migrate setup-test-org --org MY_ORG --token ghp_XXXX
 
 # Full assessment
-emu-migrate assess --config config.yaml
+uv run emu-migrate assess --config config.yaml
 
 # Migration plans
-emu-migrate plan --config config.yaml --phase all
+uv run emu-migrate plan --config config.yaml --phase all
 
 # Generate report
-emu-migrate report --config config.yaml
+uv run emu-migrate report --config config.yaml
 
 # Generate GEI script
-emu-migrate generate-gei-script --config config.yaml --full
+uv run emu-migrate generate-gei-script --config config.yaml --full
 
 # Automated test suite
-emu-migrate live-test --config config.yaml
+uv run emu-migrate live-test --config config.yaml
 
 # Entra ID checks
-emu-migrate check-entra --tenant-id TENANT_ID
-emu-migrate setup-entra --tenant-id TENANT_ID --org MY_ORG
+uv run emu-migrate check-entra --tenant-id TENANT_ID
+uv run emu-migrate setup-entra --tenant-id TENANT_ID --org MY_ORG
 
 # Clean up test org
-emu-migrate setup-test-org --org MY_ORG --token ghp_XXXX --cleanup
+uv run emu-migrate setup-test-org --org MY_ORG --token ghp_XXXX --cleanup
 ```

@@ -49,7 +49,7 @@ Go to https://github.com/settings/tokens?type=beta (Fine-grained) or https://git
 cd c:\gh-emu-migration
 
 # Option A: Via the CLI tool
-emu-migrate setup-test-org \
+uv run emu-migrate setup-test-org \
   --org YOUR_ORG \
   --token ghp_YOUR_TOKEN \
   --invite friend1-github-username \
@@ -142,7 +142,7 @@ $env:ENTRA_CLIENT_SECRET = "your-secret"
 ### Step 3.1: Quick assessment
 
 ```powershell
-emu-migrate assess
+uv run emu-migrate assess
 ```
 
 This connects to GitHub and produces:
@@ -155,19 +155,19 @@ This connects to GitHub and produces:
 
 ```powershell
 # SSO switch plan only
-emu-migrate plan --phase sso
+uv run emu-migrate plan --phase sso
 
 # EMU migration plan only
-emu-migrate plan --phase emu
+uv run emu-migrate plan --phase emu
 
 # Both plans
-emu-migrate plan
+uv run emu-migrate plan
 ```
 
 ### Step 3.3: Generate the full report
 
 ```powershell
-emu-migrate report
+uv run emu-migrate report
 ```
 
 Output: `reports/migration-report.md` + `reports/assessment.json`
@@ -175,7 +175,7 @@ Output: `reports/migration-report.md` + `reports/assessment.json`
 ### Step 3.4: Generate GEI migration script
 
 ```powershell
-emu-migrate generate-gei-script
+uv run emu-migrate generate-gei-script
 ```
 
 Output: `reports/migrate-repos.sh` — a bash script with one `gh gei migrate-repo` per active repo.
@@ -186,10 +186,10 @@ Output: `reports/migrate-repos.sh` — a bash script with one `gh gei migrate-re
 
 ```powershell
 # Standard test suite
-emu-migrate live-test
+uv run emu-migrate live-test
 
 # Full suite including GEI script generation
-emu-migrate live-test --full
+uv run emu-migrate live-test --full
 ```
 
 This runs 6–7 automated checks:
@@ -217,7 +217,7 @@ az login
 ### Step 5.2: Check Entra readiness
 
 ```powershell
-emu-migrate check-entra --tenant-id YOUR_TENANT_ID --org YOUR_ORG
+uv run emu-migrate check-entra --tenant-id YOUR_TENANT_ID --org YOUR_ORG
 ```
 
 This checks:
@@ -229,7 +229,7 @@ This checks:
 ### Step 5.3: Create Entra ID resources
 
 ```powershell
-emu-migrate setup-entra \
+uv run emu-migrate setup-entra \
   --tenant-id YOUR_TENANT_ID \
   --org YOUR_ORG \
   --enterprise YOUR_ENTERPRISE
@@ -276,7 +276,7 @@ Then prints the remaining **manual steps** for SAML configuration.
 ### Step 6.1: Verify the assessment catches real issues
 
 ```powershell
-emu-migrate assess -v   # verbose mode
+uv run emu-migrate assess -v   # verbose mode
 ```
 
 Look for:
@@ -314,7 +314,7 @@ gh gei migrate-repo `
 
 ```powershell
 # Remove test repos from the org
-emu-migrate setup-test-org --org YOUR_ORG --token ghp_TOKEN --cleanup
+uv run emu-migrate setup-test-org --org YOUR_ORG --token ghp_TOKEN --cleanup
 
 # Remove generated reports
 Remove-Item -Recurse reports/

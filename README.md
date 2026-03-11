@@ -7,28 +7,28 @@ A CLI tool that **assesses risks**, **generates step-by-step migration plans**, 
 ## Quick Start
 
 ```bash
-# 1. Install
+# 1. Install (creates .venv automatically)
 cd gh-emu-migration
-pip install -e .
+uv sync
 
 # 2. Run the offline demo (no credentials needed)
-emu-migrate demo
+uv run emu-migrate demo
 
 # 3. For real usage: configure credentials
 cp config.example.yaml config.yaml
 # Edit config.yaml with your GitHub + Entra ID details
 
 # 4. Run assessment against your org
-emu-migrate assess
+uv run emu-migrate assess
 
 # 5. View the full migration plan
-emu-migrate plan
+uv run emu-migrate plan
 
 # 6. Generate a Markdown report
-emu-migrate report
+uv run emu-migrate report
 
 # 7. Generate GEI migration script
-emu-migrate generate-gei-script
+uv run emu-migrate generate-gei-script
 ```
 
 ---
