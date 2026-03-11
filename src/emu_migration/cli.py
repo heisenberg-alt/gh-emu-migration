@@ -15,12 +15,15 @@ if sys.platform == "win32":
     except Exception:
         pass
 
+from pathlib import Path
+
 import click
 from rich.console import Console
 
 from .assessment import run_assessment
 from .config import load_config
 from .emu_migration import build_emu_migration_plan, generate_gei_script, generate_mannequin_mapping
+from .github_client import GitHubClient
 from .gei import (
     GEIClient,
     MannequinMapping,
@@ -141,8 +144,6 @@ def generate_gei(ctx: click.Context) -> None:
     with one `gh gei migrate-repo` command per repository.
     """
     cfg = _load_cfg(ctx)
-    from .github_client import GitHubClient
-
     gh = GitHubClient(token=cfg["github"]["token"])
     org = cfg["github"]["organization"]
     target_org = f"{org}-emu"
@@ -154,7 +155,6 @@ def generate_gei(ctx: click.Context) -> None:
     console.print(f"Found {len(repo_names)} active repositories.")
 
     script = generate_gei_script(repo_names, org, target_org)
-    from pathlib import Path
     output_dir = Path(cfg.get("migration", {}).get("report_output", "reports/"))
     output_dir.mkdir(parents=True, exist_ok=True)
     script_path = output_dir / "migrate-repos.sh"
@@ -290,7 +290,6 @@ def migrate(
     if repos:
         repo_list = list(repos)
     else:
-        from .github_client import GitHubClient
         gh = GitHubClient(token=source_token)
         console.print(f"[bold]Fetching repos from {org} …[/]")
         all_repos = gh.get_org_repos(org)
@@ -365,7 +364,6 @@ def reclaim_mannequins(
     else:
         # Auto-generate the CSV from assessment data
         console.print("[bold]Generating mannequin mapping from org members …[/]")
-        from .github_client import GitHubClient
         gh = GitHubClient(token=cfg["github"]["token"])
         members = gh.get_org_members(org)
         raw_mappings = generate_mannequin_mapping(members, short_code)
@@ -378,29 +376,16 @@ def reclaim_mannequins(
             for m in raw_mappings
         ]
 
-        # Write CSV
-        from pathlib import Path
-        import csv as csv_mod
-
-        out = Path(output_dir)
-        out.mkdir(parents=True, exist_ok=True)
-        csv_path = str(out / "mannequin-mapping.csv")
-
-        with open(csv_path, "w", newline="", encoding="utf-8") as f:
-            writer = csv_mod.writer(f)
-            writer.writerow(["mannequin-user", "mannequin-id", "target-user"])
-            for m in mappings:
-                writer.writerow([m.source_login, m.mannequin_id, m.target_login])
-
-        console.print(f"[green]Mannequin mapping saved to {csv_path}[/]")
         console.print(f"  {len(mappings)} users: login → login_{short_code}")
 
         if generate_only:
+            # Write CSV only, don't reclaim
+            gei.save_mannequin_csv(mappings, output_dir)
             console.print("\n[dim]--generate-only: review the CSV and re-run without this flag.[/]")
             return
 
         console.print(f"\n[bold]Reclaiming mannequins in {target_org} …[/]")
-        success = gei.reclaim_mannequins(target_org, csv_path)
+        success = gei.reclaim_mannequins_with_mapping(target_org, mappings, output_dir)
 
     sys.exit(0 if success else 1)
 

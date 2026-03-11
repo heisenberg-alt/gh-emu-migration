@@ -7,9 +7,9 @@ and returns structured results.
 from __future__ import annotations
 
 import csv
-import io
 import json
 import logging
+import os
 import shutil
 import subprocess
 from dataclasses import dataclass, field
@@ -145,8 +145,6 @@ class GEIClient:
     ) -> subprocess.CompletedProcess:
         """Run a `gh gei` command and return the result."""
         cmd = ["gh", "gei"] + args
-        import os
-
         env = os.environ.copy()
         if self._source_pat:
             env["GH_PAT"] = self._source_pat
@@ -287,13 +285,12 @@ class GEIClient:
         console.print("[green]Mannequin reclaim completed.[/]")
         return True
 
-    def reclaim_mannequins_with_mapping(
+    def save_mannequin_csv(
         self,
-        target_org: str,
         mappings: list[MannequinMapping],
         output_dir: str = "reports",
-    ) -> bool:
-        """Write a mapping CSV and run mannequin reclaim."""
+    ) -> str:
+        """Write a mannequin mapping CSV and return the path."""
         path = Path(output_dir)
         path.mkdir(parents=True, exist_ok=True)
         csv_path = str(path / "mannequin-mapping.csv")
@@ -305,6 +302,16 @@ class GEIClient:
                 writer.writerow([m.mannequin_login or m.source_login, m.mannequin_id, m.target_login])
 
         console.print(f"[dim]Mannequin mapping saved to {csv_path}[/]")
+        return csv_path
+
+    def reclaim_mannequins_with_mapping(
+        self,
+        target_org: str,
+        mappings: list[MannequinMapping],
+        output_dir: str = "reports",
+    ) -> bool:
+        """Write a mapping CSV and run mannequin reclaim."""
+        csv_path = self.save_mannequin_csv(mappings, output_dir)
         return self.reclaim_mannequins(target_org, csv_path)
 
     # ── Migration status ────────────────────────────────────────────

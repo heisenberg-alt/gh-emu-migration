@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import copy
 from datetime import datetime, timezone
 
-from .assessment import STATIC_RISKS
+from .assessment import STATIC_RISKS, _run_automated_checks
 from .emu_migration import build_emu_migration_plan
 from .models import AssessmentReport, OrgMember, RepoInfo
 from .report import (
+    console,
     generate_markdown_report,
     print_assessment,
     print_plan,
@@ -82,10 +84,9 @@ def _build_demo_report() -> AssessmentReport:
     ]
 
     # Clone static risks and run checks against demo data
-    risks = [_clone_risk(r) for r in STATIC_RISKS]
-    _demo_checks(risks, members, outside_collaborators=2)
+    risks = [copy.copy(r) for r in STATIC_RISKS]
 
-    return AssessmentReport(
+    report = AssessmentReport(
         enterprise="contoso-enterprise",
         organization="contoso-dev",
         timestamp=datetime.now(timezone.utc).isoformat(),
@@ -98,57 +99,12 @@ def _build_demo_report() -> AssessmentReport:
         saml_configured=True,
     )
 
-
-def _clone_risk(r):
-    from .models import Risk
-    return Risk(
-        id=r.id, phase=r.phase, severity=r.severity, title=r.title,
-        description=r.description, mitigation=r.mitigation,
-        automated_check=r.automated_check, check_passed=r.check_passed,
-    )
-
-
-def _demo_checks(risks, members, outside_collaborators):
-    for risk in risks:
-        if not risk.automated_check:
-            continue
-        if risk.id == "SSO-002":
-            unlinked = [m for m in members if not m.saml_identity]
-            risk.check_passed = len(unlinked) == 0
-            if unlinked:
-                risk.description += (
-                    f"\n\n⚠ {len(unlinked)} member(s) have NO SAML identity linked: "
-                    + ", ".join(m.login for m in unlinked)
-                )
-        elif risk.id == "SSO-004":
-            svc = [m for m in members if m.login.startswith(("svc-", "bot-", "ci-"))]
-            risk.check_passed = len(svc) == 0
-            if svc:
-                risk.description += (
-                    f"\n\n⚠ Found {len(svc)} potential service account(s): "
-                    + ", ".join(m.login for m in svc)
-                )
-        elif risk.id == "EMU-003":
-            risk.check_passed = outside_collaborators == 0
-            if outside_collaborators:
-                risk.description += (
-                    f"\n\n⚠ {outside_collaborators} outside collaborator(s) found."
-                )
-        elif risk.id == "EMU-005":
-            repos_with_actions = 4  # demo
-            risk.check_passed = False
-            risk.description += (
-                f"\n\n⚠ {repos_with_actions} repo(s) use GitHub Actions."
-            )
-        elif risk.id == "EMU-006":
-            risk.check_passed = True
+    _run_automated_checks(report, DEMO_CONFIG)
+    return report
 
 
 def run_demo() -> None:
     """Execute the full demo flow."""
-    from rich.console import Console
-    console = Console()
-
     console.print("[bold magenta]═══ DEMO MODE ═══[/]")
     console.print("Using synthetic data — no GitHub connection required.\n")
 
