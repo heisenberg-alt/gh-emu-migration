@@ -9,5 +9,4 @@ venv/
 .venv/
 dist/
 *.egg-info/
-reports/
 .ruff_cache/
