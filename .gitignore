@@ -1,0 +1,13 @@
+config.yaml
+*.pem
+*.key
+*.pfx
+__pycache__/
+*.pyc
+.env
+venv/
+.venv/
+dist/
+*.egg-info/
+reports/
+.ruff_cache/

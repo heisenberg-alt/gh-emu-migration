@@ -1,0 +1,58 @@
+# ============================================================
+# GitHub EMU Migration - Configuration
+# ============================================================
+# Copy this file to config.yaml and fill in your values.
+# NEVER commit config.yaml — it contains secrets.
+# ============================================================
+
+github:
+  # Your GitHub Enterprise Cloud organization slug
+  enterprise: "my-enterprise"
+  organization: "my-org"
+  # A GitHub PAT with admin:org, read:user, user:email scopes
+  token: "ghp_REPLACE_ME"
+
+# Current ADFS IdP settings (read-only, for assessment)
+adfs:
+  federation_metadata_url: "https://adfs.example.com/FederationMetadata/2007-06/FederationMetadata.xml"
+  entity_id: "https://adfs.example.com/adfs/services/trust"
+  sso_url: "https://adfs.example.com/adfs/ls/"
+  # Path to the ADFS token-signing certificate (PEM)
+  certificate_path: "certs/adfs-signing.pem"
+
+# Target Entra ID (Azure AD) settings
+entra_id:
+  tenant_id: "00000000-0000-0000-0000-000000000000"
+  client_id: "00000000-0000-0000-0000-000000000000"
+  client_secret: "REPLACE_ME"
+  # The Entra ID Enterprise App for GitHub EMU
+  app_display_name: "GitHub Enterprise Managed User"
+  # SCIM provisioning endpoint (auto-configured during setup)
+  scim_endpoint: ""
+
+# EMU settings
+emu:
+  # The short code appended to EMU usernames, e.g. user_mycompany
+  short_code: "mycompany"
+  # Entra ID group that maps to GitHub org owners
+  owners_group: "GitHub-Org-Owners"
+  # Entra ID group that maps to GitHub org members
+  members_group: "GitHub-Org-Members"
+
+# Migration options
+migration:
+  # Run in dry-run mode first (no destructive changes)
+  dry_run: true
+  # Number of parallel workers for repo transfer checks
+  parallelism: 4
+  # Where to write the migration report
+  report_output: "reports/"
+  # Whether to send email notifications to affected users
+  notify_users: false
+  # SMTP settings (only needed if notify_users is true)
+  smtp:
+    host: "smtp.example.com"
+    port: 587
+    username: ""
+    password: ""
+    from_address: "github-migration@example.com"
