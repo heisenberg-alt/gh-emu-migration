@@ -3,7 +3,7 @@
 > **Disclaimer — Proof of Concept**
 > This project is provided as a **proof of concept (POC)** for informational and evaluation purposes only. It is not production-ready software. The authors make **no guarantees, warranties, or representations** — express or implied — regarding its accuracy, reliability, completeness, or fitness for any particular purpose. Use of this tool is entirely at your own risk. Always validate migration plans and test thoroughly in a non-production environment before applying any changes to your GitHub Enterprise organization.
 
-CLI + desktop app for migrating a GitHub Enterprise organization from ADFS SAML SSO to Entra ID, including the transition to Enterprise Managed Users (EMU). Assesses risks, generates migration plans, produces GEI migration scripts, and can execute migrations directly.
+CLI + desktop app for migrating a GitHub Enterprise organization from ADFS SAML SSO to Entra ID and Enterprise Managed Users (EMU). Assesses risks, generates migration plans, and produces + executes GEI migration scripts.
 
 ## Quick Start
 
@@ -58,50 +58,52 @@ adfs:
   federation_metadata_url: "https://adfs.example.com/.../FederationMetadata.xml"
 
 entra_id:
-  tenant_id: "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+  tenant_id: "00000000-0000-0000-0000-000000000000"
   client_id: "your-app-client-id"
   client_secret: ""
 
 emu:
-  target_enterprise: "your-org-emu"
-  target_organization: "your-org-emu-org"
-  shortcode: "YOUREMU"
+  short_code: "mycompany"
+  target_organization: "your-org-emu"      # optional, defaults to {org}-emu
+  owners_group: "GitHub-Org-Owners"
+  members_group: "GitHub-Org-Members"
 
 migration:
   dry_run: true
 ```
 
-Tokens are read exclusively from environment variables (never passed as CLI arguments):
+Secrets can be overridden via environment variables (tokens are never accepted as CLI arguments):
 
 ```bash
-export GH_SOURCE_PAT="ghp_..."     # source org PAT
-export GH_TARGET_PAT="ghp_..."     # target EMU org PAT
+export GH_TOKEN="ghp_..."              # overrides github.token in config
+export GH_SOURCE_PAT="ghp_..."         # source org PAT (migrate/GEI commands)
+export GH_TARGET_PAT="ghp_..."         # target EMU org PAT (migrate/GEI commands)
 export ENTRA_TENANT_ID="..."
 export ENTRA_CLIENT_SECRET="..."
 ```
 
 ## Desktop App
 
-The desktop app provides a native GUI via [pywebview](https://pywebview.flowrl.com/) (WebKit on macOS, Edge WebView2 on Windows). It exposes the same functionality as the CLI across five tabs:
+Native GUI via [pywebview](https://pywebview.flowrl.com/) (WebKit on macOS, Edge WebView2 on Windows).
+
+![Assessment tab](app-image/gh-emu-1.png)
+
+![Execute Migration tab](app-image/gh-emu-2.png)
 
 | Tab | Description |
 |---|---|
 | Assessment | Risk assessment with severity badges and automated checks |
-| Migration Plans | SSO switch (10 steps) and EMU migration (14 steps) plans |
-| Report | Full Markdown report with copy/download |
+| Migration Plans | SSO switch (10 steps) and EMU migration (14 steps) |
+| Report | Markdown report with copy/download |
 | GEI Script | Generated `gh gei migrate-repo` script with copy/download |
-| Execute Migration | Run GEI migration directly from the app (detect `gh` + `gh-gei`, dry-run / live) |
-
-Launch with:
+| Execute Migration | Run GEI migration directly (detects `gh` + `gh-gei`, dry-run / live) |
 
 ```bash
-uv run emu-migrate-desktop           # production mode
-uv run emu-migrate-desktop --debug   # opens browser dev tools
+uv run emu-migrate-desktop           # launch
+uv run emu-migrate-desktop --debug   # launch with dev tools
 ```
 
 ### Standalone Build
-
-Build a distributable `.app` (macOS) or `.exe` (Windows) with PyInstaller:
 
 ```bash
 uv pip install "pyinstaller>=6.0"
@@ -129,25 +131,16 @@ uv pip install "pyinstaller>=6.0"
 | `emu-migrate check-entra` | Verify Entra ID / Azure CLI readiness |
 | `emu-migrate setup-entra` | Create app registration, service principal, security groups |
 
-All commands that hit the GitHub API accept `--config config.yaml`. A maximum of 500 repos are processed per run — split larger orgs into batches.
+All commands that hit the GitHub API accept `--config config.yaml`.
 
 ## Security
 
-- **No tokens on the command line.** PATs are read from environment variables only (`GH_SOURCE_PAT`, `GH_TARGET_PAT`), never accepted as CLI arguments.
-- **Token redaction in logs.** Any subprocess output that contains a PAT value is redacted before logging.
-- **Config validation.** The desktop API validates required config fields before making API calls.
-- **GraphQL error handling.** Malformed or error responses from the GitHub GraphQL API raise immediately instead of returning partial data.
-- **Pagination limits.** REST and GraphQL pagination stops after 1 000 pages to prevent runaway requests.
-- **Shell-safe scripts.** Generated GEI migration scripts use `shlex.quote()` for all interpolated values.
-
-## What the Assessment Covers
-
-- Member inventory with SAML identity linkage status
-- Repository inventory (visibility, Actions usage, archive status)
-- Outside collaborator detection (not supported in EMU)
-- Service account identification
-- 13 risks across 4 phases (assessment, SSO switch, EMU migration, validation)
-- Automated checks where possible (unlinked SAML users, Actions workflows, outside collaborators)
+- **No tokens on the command line.** PATs are read from environment variables only, never accepted as CLI arguments.
+- **Token redaction.** Subprocess output containing PAT values is redacted before logging.
+- **Config validation.** Required fields are validated before API calls.
+- **GraphQL error handling.** Malformed or error responses raise immediately instead of returning partial data.
+- **Pagination limits.** REST and GraphQL pagination caps at 1 000 pages.
+- **Shell-safe scripts.** Generated GEI scripts use `shlex.quote()` for all interpolated values.
 
 ## Risk Catalogue
 
@@ -218,14 +211,14 @@ uv run ruff check src/ tests/  # lint
 uv run pytest tests/ -v        # run tests (22 unit tests)
 ```
 
-## Important Constraints
+## Constraints
 
-- **EMU is one-way.** There is no rollback to personal accounts once repos are migrated to an EMU enterprise.
-- **Outside collaborators must be handled first.** EMU does not support them. Options: Entra B2B guest accounts, or keep shared repos in a non-EMU org.
-- **Contribution history appears as mannequins.** Commits from personal accounts are attributed to placeholder identities after migration. Use GEI mannequin reclaim to remap them.
-- **Dry-run by default.** The tool defaults to `dry_run: true`. Review all output before switching to live mode.
-- **500-repo batch limit.** CLI commands process up to 500 repos per run to keep API usage and script size manageable.
-- **This is a POC.** It generates plans, reports, and scripts. Actual SSO configuration and SCIM setup are performed in the Azure Portal and GitHub admin UI.
+- **EMU is one-way.** No rollback to personal accounts once repos are migrated.
+- **Outside collaborators first.** EMU does not support them — use Entra B2B guest accounts, or keep shared repos in a non-EMU org.
+- **Mannequins.** Commits from personal accounts become placeholder identities. Use `reclaim-mannequins` to remap.
+- **Dry-run by default.** `dry_run: true` in config. Review output before switching to live.
+- **500-repo batch limit.** CLI processes up to 500 repos per run.
+- **POC only.** SSO configuration and SCIM setup are performed in the Azure Portal and GitHub admin UI.
 
 ## Further Reading
 
