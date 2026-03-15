@@ -81,12 +81,16 @@ class GitHubClient:
 
     # ── SAML (GraphQL – Enterprise Cloud) ───────────────────────────
     def get_saml_identities(self, org: str, first: int = 100) -> list[dict]:
-        """Fetch SAML identity mappings via GraphQL."""
+        """Fetch all SAML identity mappings via GraphQL (cursor-paginated)."""
         query = """
-        query($org: String!, $first: Int!) {
+        query($org: String!, $first: Int!, $after: String) {
           organization(login: $org) {
             samlIdentityProvider {
-              externalIdentities(first: $first) {
+              externalIdentities(first: $first, after: $after) {
+                pageInfo {
+                  hasNextPage
+                  endCursor
+                }
                 edges {
                   node {
                     guid
@@ -103,16 +107,28 @@ class GitHubClient:
           }
         }
         """
-        data = self.graphql(query, {"org": org, "first": first})
-        provider = (
-            data.get("data", {})
-            .get("organization", {})
-            .get("samlIdentityProvider")
-        )
-        if not provider:
-            return []
-        edges = provider.get("externalIdentities", {}).get("edges", [])
-        return [e["node"] for e in edges]
+        all_nodes: list[dict] = []
+        cursor: str | None = None
+        while True:
+            variables: dict = {"org": org, "first": first}
+            if cursor:
+                variables["after"] = cursor
+            data = self.graphql(query, variables)
+            provider = (
+                data.get("data", {})
+                .get("organization", {})
+                .get("samlIdentityProvider")
+            )
+            if not provider:
+                break
+            identities = provider.get("externalIdentities", {})
+            edges = identities.get("edges", [])
+            all_nodes.extend(e["node"] for e in edges)
+            page_info = identities.get("pageInfo", {})
+            if not page_info.get("hasNextPage"):
+                break
+            cursor = page_info.get("endCursor")
+        return all_nodes
 
     # ── Enterprise (for EMU readiness) ──────────────────────────────
     def get_enterprise_info(self, enterprise_slug: str) -> dict:

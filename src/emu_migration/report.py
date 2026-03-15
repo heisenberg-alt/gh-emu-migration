@@ -6,11 +6,11 @@ import json
 from pathlib import Path
 from typing import Any
 
-from rich.console import Console
 from rich.markdown import Markdown
 from rich.panel import Panel
 from rich.table import Table
 
+from ._console import console
 from .models import (
     AssessmentReport,
     MigrationPhase,
@@ -18,8 +18,6 @@ from .models import (
     Risk,
     Severity,
 )
-
-console = Console()
 
 SEVERITY_COLORS = {
     Severity.CRITICAL: "bold red",
@@ -141,7 +139,9 @@ def generate_markdown_report(
     _md("|-------|------|-------------|-------|")
     for m in report.members:
         saml = "✅" if m.saml_identity else "❌"
-        _md(f"| {m.login} | {m.role} | {saml} | {m.email or '—'} |")
+        login = m.login.replace("|", "\\|")
+        email = (m.email or "—").replace("|", "\\|")
+        _md(f"| {login} | {m.role} | {saml} | {email} |")
     _md("")
 
     # ── Risks ───────────────────────────────────────────────────────

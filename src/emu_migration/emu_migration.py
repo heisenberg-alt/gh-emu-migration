@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import shlex
 from typing import Any
 
 from .models import MigrationPhase, MigrationPlan, MigrationStep
@@ -269,10 +270,10 @@ def generate_gei_script(
     for repo in repos:
         lines.append(
             f'gh gei migrate-repo \\\n'
-            f'  --github-source-org "{source_org}" \\\n'
-            f'  --source-repo "{repo}" \\\n'
-            f'  --github-target-org "{target_org}" \\\n'
-            f'  --target-repo "{repo}" \\\n'
+            f'  --github-source-org {shlex.quote(source_org)} \\\n'
+            f'  --source-repo {shlex.quote(repo)} \\\n'
+            f'  --github-target-org {shlex.quote(target_org)} \\\n'
+            f'  --target-repo {shlex.quote(repo)} \\\n'
             f'  --wait\n'
         )
     lines.append('echo "Migration complete. Check logs for errors."')

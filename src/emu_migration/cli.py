@@ -18,8 +18,8 @@ if sys.platform == "win32":
 from pathlib import Path
 
 import click
-from rich.console import Console
 
+from ._console import console
 from .assessment import run_assessment
 from .config import load_config
 from .emu_migration import build_emu_migration_plan, generate_gei_script, generate_mannequin_mapping
@@ -39,7 +39,6 @@ from .report import (
 )
 from .sso_migration import build_sso_switch_plan, validate_sso_readiness
 
-console = Console()
 logger = logging.getLogger("emu_migration")
 
 
@@ -179,7 +178,7 @@ def demo() -> None:
 
 @main.command("setup-test-org")
 @click.option("--org", required=True, help="GitHub organization slug")
-@click.option("--token", required=True, help="GitHub PAT (admin:org, repo, workflow)")
+@click.option("--token", envvar="GH_TOKEN", required=True, help="GitHub PAT (admin:org, repo, workflow), or set GH_TOKEN")
 @click.option("--invite", multiple=True, help="GitHub usernames to invite (repeat for multiple)")
 @click.option("--collaborator", default=None, help="Username to add as outside collaborator")
 @click.option("--cleanup", is_flag=True, help="Delete test-* repos instead of creating")

@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import copy
 import logging
 from datetime import datetime, timezone
 from typing import Any
 
+from ._console import console
 from .github_client import GitHubClient
 from .models import (
     AssessmentReport,
@@ -266,6 +268,7 @@ def run_assessment(cfg: dict[str, Any]) -> AssessmentReport:
         logger.info("Found %d members", report.total_members)
     except Exception as exc:
         logger.error("Failed to fetch members: %s", exc)
+        console.print(f"[yellow]Warning: failed to fetch org members — {exc}[/]")
 
     # ── Collect SAML identities ─────────────────────────────────────
     logger.info("Fetching SAML identities …")
@@ -285,6 +288,7 @@ def run_assessment(cfg: dict[str, Any]) -> AssessmentReport:
                      report.saml_configured, len(saml_map))
     except Exception as exc:
         logger.warning("Could not fetch SAML data (may need admin scope): %s", exc)
+        console.print(f"[yellow]Warning: could not fetch SAML data (admin scope may be required) — {exc}[/]")
 
     # ── Collect repos ───────────────────────────────────────────────
     logger.info("Fetching repositories …")
@@ -305,6 +309,7 @@ def run_assessment(cfg: dict[str, Any]) -> AssessmentReport:
         logger.info("Found %d repositories", report.total_repos)
     except Exception as exc:
         logger.error("Failed to fetch repos: %s", exc)
+        console.print(f"[yellow]Warning: failed to fetch repositories — {exc}[/]")
 
     # ── Outside collaborators ───────────────────────────────────────
     logger.info("Fetching outside collaborators …")
@@ -314,9 +319,10 @@ def run_assessment(cfg: dict[str, Any]) -> AssessmentReport:
         logger.info("Found %d outside collaborators", report.outside_collaborators)
     except Exception as exc:
         logger.warning("Could not fetch outside collaborators: %s", exc)
+        console.print(f"[yellow]Warning: could not fetch outside collaborators — {exc}[/]")
 
     # ── Evaluate risks ──────────────────────────────────────────────
-    report.risks = list(STATIC_RISKS)  # start with catalogue
+    report.risks = [copy.copy(r) for r in STATIC_RISKS]
     _run_automated_checks(report, cfg)
 
     return report

@@ -17,11 +17,11 @@ from enum import Enum
 from pathlib import Path
 from typing import Any
 
-from rich.console import Console
 from rich.table import Table
 
+from ._console import console
+
 logger = logging.getLogger(__name__)
-console = Console()
 
 
 # ── Data models ─────────────────────────────────────────────────────
@@ -192,7 +192,15 @@ class GEIClient:
             args.append("--wait")
 
         start = time.monotonic()
-        result = self._run(args, timeout=1800)  # 30 min per repo
+        try:
+            result = self._run(args, timeout=1800)  # 30 min per repo
+        except subprocess.TimeoutExpired:
+            return RepoMigrationResult(
+                repo=repo,
+                status=MigrationStatus.FAILED,
+                error="Migration timed out after 30 minutes.",
+                duration_seconds=time.monotonic() - start,
+            )
         elapsed = time.monotonic() - start
 
         if result.returncode == 0:
