@@ -1,36 +1,25 @@
 # gh-emu-migration
 
-> **Disclaimer — Proof of Concept**
-> This project is provided as a **proof of concept (POC)** for informational and evaluation purposes only. It is not production-ready software. The authors make **no guarantees, warranties, or representations** — express or implied — regarding its accuracy, reliability, completeness, or fitness for any particular purpose. Use of this tool is entirely at your own risk. Always validate migration plans and test thoroughly in a non-production environment before applying any changes to your GitHub Enterprise organization.
+> **Proof of Concept** — not production-ready. Validate all migration plans in a non-production environment before applying changes.
 
-CLI + desktop app for migrating a GitHub Enterprise organization from ADFS SAML SSO to Entra ID and Enterprise Managed Users (EMU). Assesses risks, generates migration plans, and produces + executes GEI migration scripts.
+CLI + desktop app for migrating a GitHub Enterprise organization from ADFS SAML SSO to Entra ID and Enterprise Managed Users (EMU).
 
 ## Quick Start
 
 ```bash
 uv sync
-```
-
-**Desktop app** (recommended):
-
-```bash
-uv run emu-migrate-desktop       # launches native GUI window
-```
-
-**CLI**:
-
-```bash
-uv run emu-migrate demo          # offline demo, no credentials needed
+uv run emu-migrate-desktop       # desktop GUI
+uv run emu-migrate demo          # CLI demo (offline, no credentials)
 ```
 
 For a real org:
 
 ```bash
-cp config.example.yaml config.yaml   # fill in GitHub + Entra ID details
-uv run emu-migrate assess            # risk assessment against your org
-uv run emu-migrate plan              # full migration plan
-uv run emu-migrate report            # Markdown report
-uv run emu-migrate generate-gei-script  # GEI repo migration script
+cp config.example.yaml config.yaml
+uv run emu-migrate assess
+uv run emu-migrate plan
+uv run emu-migrate report
+uv run emu-migrate generate-gei-script
 ```
 
 ## Prerequisites
@@ -38,11 +27,11 @@ uv run emu-migrate generate-gei-script  # GEI repo migration script
 | Requirement | Details |
 |---|---|
 | Python | 3.10+ |
-| uv | Package manager — `irm https://astral.sh/uv/install.ps1 \| iex` (Windows) |
-| GitHub PAT | Classic token with `admin:org`, `repo`, `read:user`, `user:email` scopes |
-| GitHub Enterprise Cloud | Required for SAML/SSO and EMU features (free tier works for assessment only) |
+| uv | Package manager |
+| GitHub PAT | Classic token with `admin:org`, `repo`, `read:user`, `user:email` |
+| GitHub Enterprise Cloud | Required for SAML/SSO and EMU |
 | Entra ID tenant | Global Admin or Application Admin role |
-| GitHub CLI + GEI | `gh extension install github/gh-gei` — for repo migration execution |
+| GitHub CLI + GEI | `gh extension install github/gh-gei` |
 
 ## Configuration
 
@@ -72,7 +61,7 @@ migration:
   dry_run: true
 ```
 
-Secrets can be overridden via environment variables (tokens are never accepted as CLI arguments):
+Environment variable overrides (tokens are never accepted as CLI arguments):
 
 ```bash
 export GH_TOKEN="ghp_..."              # overrides github.token in config
@@ -84,7 +73,7 @@ export ENTRA_CLIENT_SECRET="..."
 
 ## Desktop App
 
-Native GUI via [pywebview](https://pywebview.flowrl.com/) (WebKit on macOS, Edge WebView2 on Windows).
+Native GUI via [pywebview](https://pywebview.flowrl.com/) — WebKit on macOS, Edge WebView2 on Windows.
 
 ![Assessment tab](app-image/gh-emu-1.png)
 
@@ -96,132 +85,124 @@ Native GUI via [pywebview](https://pywebview.flowrl.com/) (WebKit on macOS, Edge
 | Migration Plans | SSO switch (10 steps) and EMU migration (14 steps) |
 | Report | Markdown report with copy/download |
 | GEI Script | Generated `gh gei migrate-repo` script with copy/download |
-| Execute Migration | Run GEI migration directly (detects `gh` + `gh-gei`, dry-run / live) |
+| Execute Migration | Run GEI migration directly (dry-run / live) |
 
 ```bash
 uv run emu-migrate-desktop           # launch
 uv run emu-migrate-desktop --debug   # launch with dev tools
 ```
 
-### Standalone Build
+### Building Standalone Binaries
+
+#### macOS (.app)
 
 ```bash
 uv pip install "pyinstaller>=6.0"
-./packaging/build.sh               # outputs to dist/
+./packaging/build.sh               # → dist/EMU Migration.app
 ./packaging/build.sh --clean       # clean build
 ```
+
+Distribute: zip the `.app` or create a DMG.
+
+#### Windows (.exe)
+
+```powershell
+uv pip install "pyinstaller>=6.0"
+pyinstaller packaging/emu_migration.spec --distpath dist/ --workpath build/ --noconfirm
+# → dist\EMU Migration\EMU Migration.exe
+```
+
+Distribute: zip the `dist\EMU Migration\` folder or wrap with Inno Setup / NSIS.
+
+> The spec sets `console=False` — no terminal window. On Windows, pywebview uses Edge WebView2 automatically.
 
 ## CLI Commands
 
 | Command | Description |
 |---|---|
-| `emu-migrate demo` | Run offline with synthetic data |
-| `emu-migrate assess` | Connect to GitHub org, inventory members/repos, evaluate 13 risks |
-| `emu-migrate plan --phase sso` | 10-step ADFS → Entra ID SSO switch plan |
-| `emu-migrate plan --phase emu` | 14-step EMU migration plan |
-| `emu-migrate plan` | Both plans |
-| `emu-migrate report` | Full Markdown report to `reports/migration-report.md` |
-| `emu-migrate generate-gei-script` | Bash script with `gh gei migrate-repo` per repo |
-| `emu-migrate gei-check` | Verify `gh` CLI and `gh-gei` extension are installed |
-| `emu-migrate migrate --dry-run` | Dry-run: lists repos that would be migrated |
-| `emu-migrate migrate --live` | Execute live GEI migration (source → EMU org) |
-| `emu-migrate reclaim-mannequins` | Generate mannequin mapping CSV and/or reclaim identities |
-| `emu-migrate setup-test-org` | Provision a test org with sample repos and members |
-| `emu-migrate live-test` | Automated end-to-end test suite (7 checks) |
+| `emu-migrate demo` | Offline demo with synthetic data |
+| `emu-migrate assess` | Inventory members/repos, evaluate 13 risks |
+| `emu-migrate plan [--phase sso\|emu]` | Migration plan (SSO, EMU, or both) |
+| `emu-migrate report` | Markdown report → `reports/migration-report.md` |
+| `emu-migrate generate-gei-script` | GEI migration script |
+| `emu-migrate gei-check` | Verify `gh` CLI + `gh-gei` extension |
+| `emu-migrate migrate --dry-run\|--live` | Execute GEI migration |
+| `emu-migrate reclaim-mannequins` | Mannequin mapping CSV / reclaim identities |
+| `emu-migrate setup-test-org` | Provision test org with sample data |
+| `emu-migrate live-test` | E2E test suite (7 checks) |
 | `emu-migrate check-entra` | Verify Entra ID / Azure CLI readiness |
-| `emu-migrate setup-entra` | Create app registration, service principal, security groups |
+| `emu-migrate setup-entra` | Create app registration + service principal |
 
-All commands that hit the GitHub API accept `--config config.yaml`.
+All API commands accept `--config config.yaml`.
 
 ## Security
 
-- **No tokens on the command line.** PATs are read from environment variables only, never accepted as CLI arguments.
-- **Token redaction.** Subprocess output containing PAT values is redacted before logging.
-- **Config validation.** Required fields are validated before API calls.
-- **GraphQL error handling.** Malformed or error responses raise immediately instead of returning partial data.
-- **Pagination limits.** REST and GraphQL pagination caps at 1 000 pages.
-- **Shell-safe scripts.** Generated GEI scripts use `shlex.quote()` for all interpolated values.
+- **Env-var-only tokens.** PATs never accepted as CLI arguments.
+- **Token redaction.** PAT values redacted from subprocess logs.
+- **Config validation.** Required fields validated before API calls.
+- **GraphQL error handling.** Error responses raise immediately.
+- **Pagination limits.** Capped at 1 000 pages.
+- **Shell-safe scripts.** `shlex.quote()` on all interpolated values.
 
-## Risk Catalogue
+## Risk Catalogue (13 risks)
 
 | ID | Severity | Risk |
 |---|---|---|
 | SSO-001 | CRITICAL | SSO downtime during IdP switch |
-| SSO-002 | HIGH | SAML NameID mismatch between ADFS and Entra ID |
+| SSO-002 | HIGH | SAML NameID mismatch (ADFS vs Entra ID) |
 | SSO-003 | MEDIUM | Conditional Access policy conflicts |
 | SSO-004 | HIGH | Service account authentication breakage |
 | EMU-001 | CRITICAL | Personal accounts cannot convert to EMU in-place |
 | EMU-002 | CRITICAL | Contribution history tied to personal accounts |
 | EMU-003 | HIGH | Outside collaborators not supported in EMU |
-| EMU-004 | HIGH | Personal forks, stars, and gists are lost |
-| EMU-005 | HIGH | Actions secrets and environments need reconfiguration |
+| EMU-004 | HIGH | Personal forks, stars, gists lost |
+| EMU-005 | HIGH | Actions secrets/environments need reconfiguration |
 | EMU-006 | MEDIUM | GitHub Packages registry migration |
-| EMU-007 | MEDIUM | GitHub Apps and OAuth Apps need reconfiguration |
+| EMU-007 | MEDIUM | GitHub Apps / OAuth Apps need reconfiguration |
 | VAL-001 | HIGH | PATs and SSH keys require SSO re-authorization |
 | VAL-002 | MEDIUM | CI/CD pipeline authentication updates |
-
-## Migration Phases
-
-### Phase 1 — SSO Switch (ADFS → Entra ID)
-
-10 steps: Register Entra ID Enterprise App → configure SAML claims → assign groups → download metadata → staging test → maintenance window → update GitHub SSO config → pilot validation → require SSO → decommission ADFS.
-
-### Phase 2 — EMU Migration
-
-14 steps: Verify EMU entitlement → create EMU enterprise → configure SAML + SCIM → provision accounts → create target org → install GEI → dry-run migration → full migration → reclaim mannequins → validate workflows → re-create integrations → decommission old org.
 
 ## Project Structure
 
 ```
 src/emu_migration/
-├── cli.py              # Click CLI entry point (emu-migrate)
-├── desktop.py          # pywebview desktop app launcher (emu-migrate-desktop)
-├── desktop_api.py      # Python ↔ JS bridge exposed to the GUI
-├── ui/                 # Frontend SPA (HTML/CSS/JS, GitHub Primer Dark theme)
-│   ├── index.html
-│   ├── styles.css
-│   └── app.js
-├── config.py           # YAML config loader, env var overrides
-├── models.py           # Risk, OrgMember, RepoInfo, MigrationPlan dataclasses
-├── github_client.py    # REST + GraphQL API client with pagination
-├── assessment.py       # Risk engine (13 risks, automated checks)
+├── cli.py              # Click CLI (emu-migrate)
+├── desktop.py          # pywebview launcher (emu-migrate-desktop)
+├── desktop_api.py      # Python ↔ JS bridge
+├── ui/                 # Frontend (HTML/CSS/JS)
+├── config.py           # YAML config + env var overrides
+├── models.py           # Dataclasses
+├── github_client.py    # REST + GraphQL client
+├── assessment.py       # 13 risks, automated checks
 ├── sso_migration.py    # SSO switch planner (10 steps)
-├── emu_migration.py    # EMU planner (14 steps) + GEI script generator
-├── gei.py              # GEI CLI wrapper (migrate-repo, mannequin reclaim)
-├── report.py           # Markdown + Rich console output
-├── demo.py             # Offline demo with synthetic Contoso data
-└── _console.py         # Shared Rich Console singleton
+├── emu_migration.py    # EMU planner (14 steps) + GEI script
+├── gei.py              # GEI CLI wrapper
+├── report.py           # Markdown + Rich output
+├── demo.py             # Synthetic Contoso data
+└── _console.py         # Shared Console singleton
 
-packaging/
-├── emu_migration.spec  # PyInstaller spec for .app / .exe builds
-└── build.sh            # One-command build script
-
-tests/
-├── test_core.py        # 22 pytest unit tests
-├── setup_test_org.py   # GitHub org provisioner (5 repos, members, collaborators)
-├── setup_entra_id.py   # Entra ID setup via Azure CLI
-└── live_test.py        # E2E live test runner (7 checks)
+packaging/                # PyInstaller spec + build script
+tests/                    # 22 unit tests + E2E live tests
 ```
 
 ## Development
 
 ```bash
-uv sync --extra dev            # install dev dependencies
-uv run ruff check src/ tests/  # lint
-uv run pytest tests/ -v        # run tests (22 unit tests)
+uv sync --extra dev
+uv run ruff check src/ tests/
+uv run pytest tests/ -v
 ```
 
 ## Constraints
 
-- **EMU is one-way.** No rollback to personal accounts once repos are migrated.
-- **Outside collaborators first.** EMU does not support them — use Entra B2B guest accounts, or keep shared repos in a non-EMU org.
-- **Mannequins.** Commits from personal accounts become placeholder identities. Use `reclaim-mannequins` to remap.
-- **Dry-run by default.** `dry_run: true` in config. Review output before switching to live.
-- **500-repo batch limit.** CLI processes up to 500 repos per run.
-- **POC only.** SSO configuration and SCIM setup are performed in the Azure Portal and GitHub admin UI.
+- **EMU is one-way.** No rollback once repos are migrated.
+- **Outside collaborators first.** EMU doesn't support them.
+- **Mannequins.** Use `reclaim-mannequins` to remap contribution history.
+- **Dry-run by default.** Review output before switching to `--live`.
+- **500-repo batch limit** per CLI run.
 
 ## Further Reading
 
-- [LIVE_TESTING_GUIDE.md](LIVE_TESTING_GUIDE.md) — step-by-step guide for testing against a real org
-- [TESTING.md](TESTING.md) — detailed test phases and troubleshooting
-- [config.example.yaml](config.example.yaml) — annotated configuration template
+- [LIVE_TESTING_GUIDE.md](LIVE_TESTING_GUIDE.md) — testing against a real org
+- [TESTING.md](TESTING.md) — test phases and troubleshooting
+- [config.example.yaml](config.example.yaml) — annotated config template
