@@ -27,14 +27,14 @@ SEVERITY_COLORS = {
 }
 
 SEVERITY_ICONS = {
-    Severity.CRITICAL: "🔴",
-    Severity.HIGH: "🟠",
-    Severity.MEDIUM: "🟡",
-    Severity.LOW: "🔵",
-    Severity.INFO: "⚪",
+    Severity.CRITICAL: "●",
+    Severity.HIGH: "●",
+    Severity.MEDIUM: "◐",
+    Severity.LOW: "○",
+    Severity.INFO: "·",
 }
 
-CHECK_ICONS = {True: "✅", False: "❌", None: "⬜"}
+CHECK_ICONS = {True: "✓", False: "✗", None: "–"}
 
 
 # ── Console rendering ──────────────────────────────────────────────

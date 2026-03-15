@@ -27,10 +27,6 @@ import sys
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
 
-# GitHub SAML app template ID in the Azure AD Gallery
-GITHUB_GALLERY_APP_ID = "4173a31a-3a5c-4d5e-8f0e-2c9b5a2d3e4f"
-
-
 def run_az(args: list[str], check: bool = True) -> dict | list | str:
     """Run an Azure CLI command and return parsed JSON output."""
     cmd = ["az"] + args + ["--output", "json"]

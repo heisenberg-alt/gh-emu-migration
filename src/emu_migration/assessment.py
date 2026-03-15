@@ -239,6 +239,8 @@ def run_assessment(cfg: dict[str, Any]) -> AssessmentReport:
     org_slug = cfg["github"]["organization"]
     ent_slug = cfg["github"]["enterprise"]
 
+    logger.info("Starting assessment for enterprise=%s, org=%s", ent_slug, org_slug)
+
     report = AssessmentReport(
         enterprise=ent_slug,
         organization=org_slug,
@@ -276,8 +278,8 @@ def run_assessment(cfg: dict[str, Any]) -> AssessmentReport:
         saml_map: dict[str, str] = {}
         for node in saml_edges:
             user = node.get("user")
-            saml_id = node.get("samlIdentity", {}).get("nameId", "")
-            if user:
+            if user and "login" in user:
+                saml_id = node.get("samlIdentity", {}).get("nameId", "")
                 saml_map[user["login"]] = saml_id
         for member in report.members:
             member.saml_identity = saml_map.get(member.login)
@@ -321,7 +323,7 @@ def run_assessment(cfg: dict[str, Any]) -> AssessmentReport:
         console.print(f"[yellow]Warning: could not fetch outside collaborators — {exc}[/]")
 
     # ── Evaluate risks ──────────────────────────────────────────────
-    report.risks = [copy.copy(r) for r in STATIC_RISKS]
+    report.risks = [copy.deepcopy(r) for r in STATIC_RISKS]
     _run_automated_checks(report, cfg)
 
     return report

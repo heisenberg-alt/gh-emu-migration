@@ -34,18 +34,22 @@ class GitHubClient:
         resp.raise_for_status()
         return resp.json()
 
-    def _get_paginated(self, path: str, params: dict | None = None) -> list[Any]:
+    def _get_paginated(self, path: str, params: dict | None = None, max_pages: int = 1000) -> list[Any]:
         """Auto-paginate a GitHub list endpoint."""
         params = dict(params or {})
         params.setdefault("per_page", 100)
         results: list[Any] = []
         url = f"{self._api}{path}"
-        while url:
+        pages = 0
+        while url and pages < max_pages:
             resp = self._session.get(url, params=params, timeout=30)
             resp.raise_for_status()
             results.extend(resp.json())
             url = resp.links.get("next", {}).get("url")
             params = {}  # params are baked into next-link
+            pages += 1
+        if pages >= max_pages:
+            logger.warning("Pagination limit (%d pages) reached for %s", max_pages, path)
         return results
 
     # ── GraphQL helper ──────────────────────────────────────────────
@@ -57,7 +61,8 @@ class GitHubClient:
         resp.raise_for_status()
         data = resp.json()
         if "errors" in data:
-            logger.warning("GraphQL errors: %s", data["errors"])
+            msgs = "; ".join(e.get("message", "unknown") for e in data["errors"])
+            raise RuntimeError(f"GraphQL error: {msgs}")
         return data
 
     # ── Organization ────────────────────────────────────────────────
@@ -123,7 +128,10 @@ class GitHubClient:
                 break
             identities = provider.get("externalIdentities", {})
             edges = identities.get("edges", [])
-            all_nodes.extend(e["node"] for e in edges)
+            for edge in edges:
+                node = edge.get("node")
+                if node:
+                    all_nodes.append(node)
             page_info = identities.get("pageInfo", {})
             if not page_info.get("hasNextPage"):
                 break
@@ -145,17 +153,3 @@ class GitHubClient:
         }
         """
         return self.graphql(query, {"slug": enterprise_slug})
-
-    # ── Repo detail helpers ─────────────────────────────────────────
-    def get_repo_branch_protections(self, owner: str, repo: str) -> list[dict]:
-        try:
-            return self._get_paginated(f"/repos/{owner}/{repo}/branches")
-        except requests.HTTPError:
-            return []
-
-    def get_repo_actions_workflows(self, owner: str, repo: str) -> list[dict]:
-        try:
-            data = self._get(f"/repos/{owner}/{repo}/actions/workflows")
-            return data.get("workflows", [])
-        except requests.HTTPError:
-            return []

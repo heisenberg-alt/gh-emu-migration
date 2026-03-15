@@ -43,8 +43,6 @@ class OrgMember:
     role: str = "member"  # "admin" | "member"
     has_2fa: bool = False
     saml_identity: Optional[str] = None
-    repos_owned: int = 0
-    pending_invitations: int = 0
 
 
 @dataclass
@@ -57,9 +55,6 @@ class RepoInfo:
     size_kb: int
     default_branch: str
     has_actions: bool = False
-    has_packages: bool = False
-    outside_collaborators: int = 0
-    branch_protections: int = 0
 
 
 @dataclass

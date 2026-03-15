@@ -160,10 +160,18 @@ class GEIClient:
             env=env,
             timeout=timeout,
         )
+        # Redact tokens from logged output
+        secrets = [s for s in (self._source_pat, self._target_pat) if s]
         if result.stdout:
-            logger.debug("stdout: %s", result.stdout[:2000])
+            out = result.stdout[:2000]
+            for s in secrets:
+                out = out.replace(s, "***")
+            logger.debug("stdout: %s", out)
         if result.stderr:
-            logger.debug("stderr: %s", result.stderr[:2000])
+            err = result.stderr[:2000]
+            for s in secrets:
+                err = err.replace(s, "***")
+            logger.debug("stderr: %s", err)
         return result
 
     # ── Repo migration ──────────────────────────────────────────────
@@ -320,13 +328,6 @@ class GEIClient:
         """Write a mapping CSV and run mannequin reclaim."""
         csv_path = self.save_mannequin_csv(mappings, output_dir)
         return self.reclaim_mannequins(target_org, csv_path)
-
-    # ── Migration status ────────────────────────────────────────────
-
-    def wait_for_migration(self, migration_id: str) -> subprocess.CompletedProcess:
-        """Wait for a specific migration to complete."""
-        args = ["wait-for-migration", "--migration-id", migration_id]
-        return self._run(args, timeout=3600)
 
     # ── Helpers ─────────────────────────────────────────────────────
 

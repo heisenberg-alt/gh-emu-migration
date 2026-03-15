@@ -14,16 +14,22 @@ dependencies = [
     "rich>=13.0,<14",
     "click>=8.1,<9",
     "pydantic>=2.0,<3",
+    "pywebview>=5.0,<6",
 ]
 
 [project.optional-dependencies]
 dev = ["pytest>=7", "pytest-cov", "ruff"]
+packaging = ["pyinstaller>=6.0"]
 
 [project.scripts]
 emu-migrate = "emu_migration.cli:main"
+emu-migrate-desktop = "emu_migration.desktop:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+emu_migration = ["ui/*.html", "ui/*.css", "ui/*.js"]
 
 [tool.ruff]
 target-version = "py310"

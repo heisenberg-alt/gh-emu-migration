@@ -15,6 +15,7 @@ if sys.platform == "win32":
     except Exception:
         pass
 
+import stat
 from pathlib import Path
 
 import click
@@ -157,6 +158,7 @@ def generate_gei(ctx: click.Context) -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
     script_path = output_dir / "migrate-repos.sh"
     script_path.write_text(script, encoding="utf-8")
+    script_path.chmod(script_path.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP)
     console.print(f"[green]GEI script saved to {script_path.resolve()}[/]")
 
 
@@ -253,15 +255,11 @@ def live_test(ctx: click.Context, full: bool) -> None:
 @main.command("migrate")
 @click.option("--repos", multiple=True, help="Specific repos to migrate (default: all non-archived)")
 @click.option("--dry-run/--live", default=True, help="Dry-run (default) or live migration")
-@click.option("--source-pat", envvar="GH_SOURCE_PAT", default=None, help="Source org admin PAT (or GH_SOURCE_PAT)")
-@click.option("--target-pat", envvar="GH_TARGET_PAT", default=None, help="Target org admin PAT (or GH_TARGET_PAT)")
 @click.pass_context
 def migrate(
     ctx: click.Context,
     repos: tuple,
     dry_run: bool,
-    source_pat: str | None,
-    target_pat: str | None,
 ) -> None:
     """Run GEI repository migration (source org → EMU org).
 
@@ -269,16 +267,19 @@ def migrate(
     Pass --live to execute for real.
 
     Requires `gh` CLI with the `gh-gei` extension installed.
-    Set GH_SOURCE_PAT and GH_TARGET_PAT or pass them as options.
+    Set GH_SOURCE_PAT and GH_TARGET_PAT environment variables.
     """
     cfg = _load_cfg(ctx)
     org = cfg["github"]["organization"]
     target_org = cfg.get("emu", {}).get("target_organization", f"{org}-emu")
-    source_token = source_pat or cfg["github"].get("token")
-    target_token = target_pat or source_token
+    source_token = os.environ.get("GH_SOURCE_PAT") or cfg["github"].get("token")
+    target_token = os.environ.get("GH_TARGET_PAT") or source_token
 
     if not source_token:
-        console.print("[red]No source PAT provided. Set GH_SOURCE_PAT or use --source-pat.[/]")
+        console.print("[red]No source PAT. Set the GH_SOURCE_PAT environment variable.[/]")
+        sys.exit(1)
+    if not target_token:
+        console.print("[red]No target PAT. Set the GH_TARGET_PAT environment variable.[/]")
         sys.exit(1)
 
     gei = GEIClient(source_pat=source_token, target_pat=target_token)
@@ -297,6 +298,13 @@ def migrate(
     if not repo_list:
         console.print("[yellow]No repositories to migrate.[/]")
         return
+
+    if len(repo_list) > 500:
+        console.print(
+            f"[red]Too many repos ({len(repo_list)}). Maximum per run is 500.[/]\n"
+            "Use --repos to specify a subset."
+        )
+        sys.exit(1)
 
     if not dry_run:
         console.print(

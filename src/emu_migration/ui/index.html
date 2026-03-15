@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>EMU Migration Tool</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+<div class="app-shell">
+  <!-- ═══ SIDEBAR ═══ -->
+  <aside class="sidebar">
+    <div class="gh-header">
+      <svg height="32" viewBox="0 0 16 16" width="32" fill="#e6edf3">
+        <path d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45
+        7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2
+        0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88
+        3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02
+        -.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27
+        -2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82
+        -2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82
+        1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2
+        -.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24
+        -.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9
+        .82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01
+        1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42
+        3.58-8 8-8Z" />
+      </svg>
+      <div>
+        <h1>EMU Migration</h1>
+        <div class="subtitle">ADFS → Entra ID · Enterprise Managed Users</div>
+      </div>
+    </div>
+
+    <!-- Demo button -->
+    <button class="btn btn-primary" style="width:100%;margin-bottom:16px" id="btn-demo">
+      Load Demo Data
+    </button>
+
+    <!-- Config sections -->
+    <details class="config-section" open>
+      <summary>GitHub</summary>
+      <div class="fields">
+        <label for="gh-enterprise">Enterprise slug</label>
+        <input id="gh-enterprise" type="text" placeholder="contoso-enterprise" />
+        <label for="gh-org">Organisation</label>
+        <input id="gh-org" type="text" placeholder="contoso-dev" />
+        <label for="gh-token">Personal access token</label>
+        <input id="gh-token" type="password" placeholder="ghp_…" />
+      </div>
+    </details>
+
+    <details class="config-section">
+      <summary>Entra ID</summary>
+      <div class="fields">
+        <label for="entra-tenant">Tenant ID</label>
+        <input id="entra-tenant" type="text" placeholder="a1b2c3d4-…" />
+        <label for="entra-client">Client ID</label>
+        <input id="entra-client" type="text" placeholder="11111111-…" />
+        <label for="entra-secret">Client secret</label>
+        <input id="entra-secret" type="password" placeholder="secret" />
+        <label for="entra-app">App display name</label>
+        <input id="entra-app" type="text" value="GitHub Enterprise Managed User" />
+      </div>
+    </details>
+
+    <details class="config-section">
+      <summary>ADFS</summary>
+      <div class="fields">
+        <label for="adfs-entity">Entity ID</label>
+        <input id="adfs-entity" type="text" placeholder="https://adfs.company.com/…" />
+        <label for="adfs-sso">SSO URL</label>
+        <input id="adfs-sso" type="text" placeholder="https://adfs.company.com/…" />
+      </div>
+    </details>
+
+    <details class="config-section">
+      <summary>EMU</summary>
+      <div class="fields">
+        <label for="emu-short">Short code</label>
+        <input id="emu-short" type="text" placeholder="contoso" />
+        <label for="emu-owners">Owners group</label>
+        <input id="emu-owners" type="text" value="GitHub-Org-Owners" />
+        <label for="emu-members">Members group</label>
+        <input id="emu-members" type="text" value="GitHub-Org-Members" />
+      </div>
+    </details>
+
+    <hr class="gh-divider" />
+    <button class="btn btn-secondary" style="width:100%" id="btn-assess" disabled>
+      Run Live Assessment
+    </button>
+  </aside>
+
+  <!-- ═══ MAIN ═══ -->
+  <main class="main">
+    <div class="tab-bar">
+      <button class="tab-btn active" data-tab="assessment">Assessment</button>
+      <button class="tab-btn" data-tab="plans">Migration Plans</button>
+      <button class="tab-btn" data-tab="report">Report</button>
+      <button class="tab-btn" data-tab="gei">GEI Script</button>
+      <button class="tab-btn" data-tab="execute">Execute Migration</button>
+    </div>
+
+    <!-- ── Assessment tab ─────────────── -->
+    <div class="tab-panel active" id="tab-assessment">
+      <div id="assess-empty" class="empty-state">
+        <h3>No assessment loaded</h3>
+        <p>Click <strong>Load Demo Data</strong> to explore, or fill in credentials and run a live assessment.</p>
+      </div>
+      <div id="assess-content" style="display:none">
+        <div class="metrics-row" id="metrics-row"></div>
+        <hr class="gh-divider" />
+        <div class="col-2">
+          <div>
+            <h3 class="section-heading">Organisation Members</h3>
+            <p class="section-caption">Users and their SAML linkage status</p>
+            <div class="table-wrap">
+              <table class="data-table" id="members-table">
+                <thead><tr><th>Login</th><th>Role</th><th>Email</th><th>SAML</th></tr></thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+          <div>
+            <h3 class="section-heading">Repositories</h3>
+            <p class="section-caption">Size, visibility, and CI status</p>
+            <div class="table-wrap">
+              <table class="data-table" id="repos-table">
+                <thead><tr><th>Name</th><th>Visibility</th><th>Size</th><th>CI</th></tr></thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        <hr class="gh-divider" />
+        <h3 class="section-heading">Risk Assessment</h3>
+        <p class="section-caption">Automated checks and static risks</p>
+        <div id="risks-container"></div>
+      </div>
+    </div>
+
+    <!-- ── Plans tab ──────────────────── -->
+    <div class="tab-panel" id="tab-plans">
+      <div id="plans-empty" class="empty-state">
+        <h3>No plans generated</h3>
+        <p>Load demo data or run an assessment first.</p>
+      </div>
+      <div id="plans-content" style="display:none">
+        <h3 class="section-heading">SSO Migration Plan</h3>
+        <p class="section-caption">Steps to switch ADFS → Entra ID SAML</p>
+        <div id="sso-steps"></div>
+        <hr class="gh-divider" />
+        <h3 class="section-heading">EMU Migration Plan</h3>
+        <p class="section-caption">Steps to enable Enterprise Managed Users</p>
+        <div id="emu-steps"></div>
+      </div>
+    </div>
+
+    <!-- ── Report tab ─────────────────── -->
+    <div class="tab-panel" id="tab-report">
+      <div id="report-empty" class="empty-state">
+        <h3>No report generated</h3>
+        <p>Load demo data or run an assessment first.</p>
+      </div>
+      <div id="report-content" style="display:none">
+        <div class="action-row">
+          <button class="btn btn-secondary btn-sm" id="btn-copy-md">Copy Markdown</button>
+          <button class="btn btn-secondary btn-sm" id="btn-download-md">Download .md</button>
+        </div>
+        <div class="code-block" id="report-md" style="max-height:calc(100vh - 200px);overflow-y:auto"></div>
+      </div>
+    </div>
+
+    <!-- ── GEI Script tab ─────────────── -->
+    <div class="tab-panel" id="tab-gei">
+      <div id="gei-empty" class="empty-state">
+        <h3>No GEI script generated</h3>
+        <p>Load demo data to see a sample migration script.</p>
+      </div>
+      <div id="gei-content" style="display:none">
+        <div class="action-row">
+          <button class="btn btn-secondary btn-sm" id="btn-copy-gei">Copy Script</button>
+        </div>
+        <div class="code-block" id="gei-script" style="max-height:calc(100vh - 200px);overflow-y:auto"></div>
+      </div>
+    </div>
+
+    <!-- ── Execute Migration tab (desktop-only) ──── -->
+    <div class="tab-panel" id="tab-execute">
+      <h3 class="section-heading">Execute GEI Migration</h3>
+      <p class="section-caption">Run repository migrations directly from the desktop — no terminal needed.</p>
+
+      <div id="gei-status-box"></div>
+
+      <div class="col-2" style="margin-bottom:16px">
+        <div>
+          <label for="exec-source-org">Source organisation</label>
+          <input id="exec-source-org" type="text" placeholder="contoso-dev" />
+          <label for="exec-target-org">Target EMU organisation</label>
+          <input id="exec-target-org" type="text" placeholder="contoso-dev-emu" />
+        </div>
+        <div>
+          <label for="exec-source-pat">Source PAT</label>
+          <input id="exec-source-pat" type="password" placeholder="ghp_source…" />
+          <label for="exec-target-pat">Target PAT</label>
+          <input id="exec-target-pat" type="password" placeholder="ghp_target…" />
+        </div>
+      </div>
+
+      <label for="exec-repos">Repositories (comma-separated)</label>
+      <input id="exec-repos" type="text" placeholder="backend-api, frontend-app, shared-libs" style="margin-bottom:12px" />
+
+      <div class="action-row">
+        <button class="btn btn-primary" id="btn-dry-run">Dry Run</button>
+        <button class="btn btn-danger" id="btn-migrate" disabled>Migrate (Live)</button>
+      </div>
+
+      <div id="exec-results"></div>
+    </div>
+  </main>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

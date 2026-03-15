@@ -1,12 +1,36 @@
+# Secrets
 config.yaml
 *.pem
 *.key
 *.pfx
+.env
+
+# Python
 __pycache__/
 *.pyc
-.env
+*.pyo
+*.egg-info/
+*.egg
+
+# Virtual environments
 venv/
 .venv/
+
+# Build / packaging
+build/
 dist/
-*.egg-info/
+
+# Tool caches
 .ruff_cache/
+.pytest_cache/
+.mypy_cache/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
