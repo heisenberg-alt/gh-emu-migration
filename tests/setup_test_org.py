@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import argparse
 import logging
+import os
 import sys
 import time
 from typing import Any
@@ -293,7 +294,7 @@ def main():
         description="Set up a demo GitHub org for EMU migration testing"
     )
     parser.add_argument("--org", required=True, help="GitHub organization slug")
-    parser.add_argument("--token", required=True, help="GitHub PAT (admin:org, repo, workflow)")
+    parser.add_argument("--token", default=None, help="GitHub PAT (admin:org, repo, workflow), or set GH_TOKEN env var")
     parser.add_argument(
         "--invite",
         nargs="*",
@@ -312,7 +313,10 @@ def main():
     )
 
     args = parser.parse_args()
-    setup = GitHubSetup(token=args.token, org=args.org)
+    token = args.token or os.environ.get("GH_TOKEN")
+    if not token:
+        parser.error("A GitHub PAT is required via --token or GH_TOKEN env var")
+    setup = GitHubSetup(token=token, org=args.org)
 
     if args.cleanup:
         logger.info("🗑️  Cleaning up test repos in %s ...", args.org)

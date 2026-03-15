@@ -6,7 +6,6 @@ import json
 from pathlib import Path
 from typing import Any
 
-from rich.markdown import Markdown
 from rich.panel import Panel
 from rich.table import Table
 
@@ -121,7 +120,7 @@ def generate_markdown_report(
     _md = lines.append
 
     _md("# GitHub Enterprise Migration Report")
-    _md(f"## ADFS → Entra ID SSO + EMU Migration")
+    _md("## ADFS → Entra ID SSO + EMU Migration")
     _md("")
     _md(f"- **Enterprise**: {report.enterprise}")
     _md(f"- **Organization**: {report.organization}")

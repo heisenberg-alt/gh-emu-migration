@@ -143,10 +143,10 @@ def build_emu_migration_plan(cfg: dict[str, Any]) -> MigrationPlan:
             title="Run repository migration (dry-run)",
             description=(
                 "Execute a dry-run to validate repos before migrating:\n\n"
-                f"  emu-migrate migrate --config config.yaml --dry-run\n\n"
+                "  emu-migrate migrate --config config.yaml --dry-run\n\n"
                 "Or migrate specific repos first:\n\n"
-                f"  emu-migrate migrate --config config.yaml --dry-run "
-                f"--repos test-backend-api --repos test-frontend-app\n\n"
+                "  emu-migrate migrate --config config.yaml --dry-run "
+                "--repos test-backend-api --repos test-frontend-app\n\n"
                 "Review the output. No data is transferred in dry-run mode."
             ),
             manual=False,
@@ -157,7 +157,7 @@ def build_emu_migration_plan(cfg: dict[str, Any]) -> MigrationPlan:
             title="Run full repository migration",
             description=(
                 "After validating the dry-run, execute the live migration:\n\n"
-                f"  emu-migrate migrate --config config.yaml --live\n\n"
+                "  emu-migrate migrate --config config.yaml --live\n\n"
                 "This migrates all non-archived repos sequentially.\n"
                 "Monitor the output and check reports/migration-log.json.\n\n"
                 "Post-migration per-repo checklist:\n"
@@ -179,10 +179,10 @@ def build_emu_migration_plan(cfg: dict[str, Any]) -> MigrationPlan:
                 "After migration, commits/PRs from old personal accounts show as "
                 "'mannequins'. Reclaim them:\n\n"
                 "Generate the mapping CSV:\n"
-                f"  emu-migrate reclaim-mannequins --config config.yaml --generate-only\n\n"
+                "  emu-migrate reclaim-mannequins --config config.yaml --generate-only\n\n"
                 "Review and edit reports/mannequin-mapping.csv, then reclaim:\n"
-                f"  emu-migrate reclaim-mannequins --config config.yaml "
-                f"--csv-file reports/mannequin-mapping.csv"
+                "  emu-migrate reclaim-mannequins --config config.yaml "
+                "--csv-file reports/mannequin-mapping.csv"
             ),
             manual=False,
         ),

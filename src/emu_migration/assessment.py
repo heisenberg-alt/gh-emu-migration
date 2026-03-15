@@ -238,7 +238,6 @@ def run_assessment(cfg: dict[str, Any]) -> AssessmentReport:
     gh = GitHubClient(token=cfg["github"]["token"])
     org_slug = cfg["github"]["organization"]
     ent_slug = cfg["github"]["enterprise"]
-    short_code = cfg.get("emu", {}).get("short_code", "company")
 
     report = AssessmentReport(
         enterprise=ent_slug,
@@ -261,8 +260,8 @@ def run_assessment(cfg: dict[str, Any]) -> AssessmentReport:
             try:
                 detail = gh.get_org_member_detail(org_slug, m["login"])
                 member.role = detail.get("role", "member")
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("Could not fetch role for %s: %s", m["login"], exc)
             report.members.append(member)
         report.total_members = len(report.members)
         logger.info("Found %d members", report.total_members)

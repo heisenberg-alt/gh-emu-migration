@@ -11,16 +11,14 @@ Usage:
 from __future__ import annotations
 
 import argparse
-import json
 import logging
 import sys
 import time
 from pathlib import Path
 
-from rich.console import Console
 from rich.panel import Panel
 
-console = Console()
+from emu_migration._console import console
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
 
@@ -46,7 +44,7 @@ def run_live_test(config_path: str, full: bool = False) -> bool:
     console.rule("[bold]Test 1: Configuration Loading")
     try:
         cfg = load_config(config_path)
-        console.print(f"[green]✅ Config loaded[/]")
+        console.print("[green]✅ Config loaded[/]")
         console.print(f"   Enterprise: {cfg['github']['enterprise']}")
         console.print(f"   Org       : {cfg['github']['organization']}")
         console.print(f"   Tenant    : {cfg['entra_id']['tenant_id']}")
@@ -146,7 +144,7 @@ def run_live_test(config_path: str, full: bool = False) -> bool:
             assert json_path.exists(), "JSON report not written"
             assert md_path.stat().st_size > 1000, "Report too small"
 
-            console.print(f"[green]✅ Reports generated[/]")
+            console.print("[green]✅ Reports generated[/]")
             console.print(f"   Markdown: {md_path} ({md_path.stat().st_size:,} bytes)")
             console.print(f"   JSON    : {json_path} ({json_path.stat().st_size:,} bytes)")
             results["report"] = True

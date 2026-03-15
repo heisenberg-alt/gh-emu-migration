@@ -146,7 +146,6 @@ def generate_gei(ctx: click.Context) -> None:
     gh = GitHubClient(token=cfg["github"]["token"])
     org = cfg["github"]["organization"]
     target_org = f"{org}-emu"
-    short_code = cfg.get("emu", {}).get("short_code", "company")
 
     console.print(f"[bold]Fetching repos from {org} …[/]")
     repos = gh.get_org_repos(org)
